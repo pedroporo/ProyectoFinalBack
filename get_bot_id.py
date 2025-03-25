@@ -1,5 +1,7 @@
 import os
 from slackclient import SlackClient
+from dotenv import load_dotenv
+load_dotenv()
 
 BOT_NAME = 'callbot'
 

@@ -2,9 +2,10 @@ import os
 import phonenumbers
 import time
 import uuid
-from slackclient import SlackClient
+from slack import SlackClient
 from twilio.rest import TwilioRestClient
-
+from dotenv import load_dotenv
+load_dotenv()
 
 # environment variables
 BOT_ID = os.environ.get("BOT_ID")

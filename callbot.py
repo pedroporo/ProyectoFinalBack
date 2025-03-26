@@ -2,37 +2,18 @@ import os
 import phonenumbers
 import time
 import uuid
-from slack import SlackClient
-from twilio.rest import TwilioRestClient
+from twilio.rest import Client
 from dotenv import load_dotenv
 load_dotenv()
 
 # environment variables
-BOT_ID = os.environ.get("BOT_ID")
 TWILIO_NUMBER = os.environ.get("TWILIO_NUMBER")
 
 # constants
-AT_BOT = "<@" + BOT_ID + ">:"
-CALL_COMMAND = "call"
 TWIMLET = "https://twimlets.com/echo?Twiml=%3CResponse%3E%0A%20%20%3CDial%3E%3CConference%3E{{name}}%3C%2FConference%3E%3C%2FDial%3E%0A%3C%2FResponse%3E&"
 
 # instantiate Slack & Twilio clients
-slack_client = SlackClient(os.environ.get('SLACK_BOT_TOKEN'))
-twilio_client = TwilioRestClient()
-
-
-def handle_command(command, channel):
-    """
-        Receives commands directed at the bot and determines if they
-        are valid commands. If so, then acts on the commands. If not,
-        returns back what it needs for clarification.
-    """
-    response = "Not sure what you mean. Use the *" + \
-               CALL_COMMAND + "* command with numbers, delimited by spaces."
-    if command.startswith(CALL_COMMAND):
-        response = call_command(command[len(CALL_COMMAND):].strip())
-    slack_client.api_call("chat.postMessage", channel=channel,
-                          text=response, as_user=True)
+twilio_client = Client()
 
 
 def call_command(phone_numbers_list_as_string):

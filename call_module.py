@@ -203,7 +203,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the Twilio AI voice assistant server.")
     parser.add_argument('--call', required=True, help="The phone number to call, e.g., '--call=+18005551212'")
     args = parser.parse_args()
-
+    #print(args)
     phone_number = args.call
     #phone_number='+34653072842'
     print(

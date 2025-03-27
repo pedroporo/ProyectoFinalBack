@@ -6,3 +6,5 @@ services:
       - callvolume:/usr/src/app
     ports:
       - "8765:8765"
+volumes:
+  callvolume

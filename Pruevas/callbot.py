@@ -63,7 +63,7 @@ def validate_phone_numbers(phone_numbers):
 
 
 if __name__ == "__main__":
-    READ_WEBSOCKET_DELAY = 1 # 1 second delay between reading from firehose
+    READ_WEBSOCKET_DELAY = 1
     while True:
         print("CallBot connected and running!")
         time.sleep(READ_WEBSOCKET_DELAY)

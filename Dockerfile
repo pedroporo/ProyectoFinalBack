@@ -1,2 +1,6 @@
 FROM python:3.6-onbuild
-CMD["python3","./call_module.py"]
+RUN mkdir /usr/src/app
+WORKDIR /usr/src/app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+CMD["python","call_module.py"]

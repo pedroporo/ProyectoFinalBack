@@ -201,11 +201,11 @@ async def log_call_sid(call_sid):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the Twilio AI voice assistant server.")
-    parser.add_argument('--call', required=True, help="The phone number to call, e.g., '--call=+18005551212'")
-    args = parser.parse_args()
+    #parser.add_argument('--call', required=True, help="The phone number to call, e.g., '--call=+18005551212'")
+    #args = parser.parse_args()
     #print(args)
-    phone_number = args.call
-    #phone_number='+34653072842'
+    #phone_number = args.call
+    phone_number='+34653072842'
     print(
         'Our recommendation is to always disclose the use of AI for outbound or inbound calls.\n'
         'Reminder: All of the rules of TCPA apply even if a call is made by AI.\n'

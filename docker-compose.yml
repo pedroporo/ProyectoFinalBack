@@ -1,0 +1,9 @@
+version: '3'
+services:
+  app:
+    build: .
+    command: python call_module.py
+    volumes:
+      - .:/usr/src/app
+    ports:
+      - "8765:8765"

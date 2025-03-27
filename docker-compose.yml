@@ -3,6 +3,6 @@ services:
   app:
     build: .
     volumes:
-      - 'callvolume:/usr/src/app'
+      - callvolume:/usr/src/app
     ports:
       - "8765:8765"

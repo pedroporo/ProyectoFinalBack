@@ -7,5 +7,4 @@ services:
     ports:
       - "8765:8765"
 volumes:
-  - callvolume:
-      external: true
+  callvolume:

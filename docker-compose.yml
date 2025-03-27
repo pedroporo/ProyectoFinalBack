@@ -8,3 +8,4 @@ services:
       - "8765:8765"
 volumes:
   callvolume:
+    driver: local

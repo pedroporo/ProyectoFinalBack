@@ -1,9 +1,8 @@
 version: '3'
 services:
   app:
-    build: ./
-    command: python call_module.py
+    build: .
     volumes:
-      - /var/www/vhosts/pedro.indexeodev.es/docker/:/usr/src/app
+      - "/var/www/vhosts/pedro.indexeodev.es/docker/:/usr/src/app"
     ports:
       - "8765:8765"

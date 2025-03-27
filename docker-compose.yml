@@ -3,6 +3,6 @@ services:
   app:
     build: .
     volumes:
-      - '/var/www/vhosts/pedro.indexeodev.es/docker/:/usr/src/app'
+      - '/usr/src/test:/usr/src/app'
     ports:
       - "8765:8765"

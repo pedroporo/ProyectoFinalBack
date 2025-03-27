@@ -1,2 +1,2 @@
 FROM python:3.6-onbuild
-CMD["python","./call_module.py"]
+CMD["python3","./call_module.py"]

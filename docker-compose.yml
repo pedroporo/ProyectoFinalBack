@@ -4,6 +4,6 @@ services:
     build: .
     volumes:
       - source:
-          "/testcall:/usr/src/app"
+          /testcall:/usr/src/app
     ports:
       - "8765:8765"

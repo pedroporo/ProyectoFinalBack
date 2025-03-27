@@ -4,6 +4,6 @@ services:
     build: .
     command: python call_module.py
     volumes:
-      - .:/usr/src/app
+      - ./:/usr/src/app
     ports:
       - "8765:8765"

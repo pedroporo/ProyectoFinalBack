@@ -3,6 +3,8 @@ import json
 import base64
 import asyncio
 import argparse
+import time
+
 from fastapi import FastAPI, WebSocket, BackgroundTasks
 from fastapi.responses import JSONResponse
 from fastapi.websockets import WebSocketDisconnect
@@ -52,7 +54,7 @@ async def handle_media_stream(websocket: WebSocket):
     await websocket.accept()
 
     async with websockets.connect(
-        'wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01',
+        'wss://api.openai.com/v1/realtime?model=gpt-4o-mini-realtime-preview',
         additional_headers={
             "Authorization": f"Bearer {OPENAI_API_KEY}",
             "OpenAI-Beta": "realtime=v1"
@@ -76,10 +78,14 @@ async def handle_media_stream(websocket: WebSocket):
                     elif data['event'] == 'start':
                         stream_sid = data['start']['streamSid']
                         print(f"Incoming stream has started {stream_sid}")
+                    elif data['event']=='stop':
+                        print("Client stopped the call")
+                        await openai_ws.close()
             except WebSocketDisconnect:
                 print("Client disconnected.")
                 if openai_ws.state.OPEN:
                     await openai_ws.close()
+
 
         async def send_to_twilio():
             """Receive events from the OpenAI Realtime API, send audio back to Twilio."""
@@ -118,9 +124,9 @@ async def send_initial_conversation_item(openai_ws):
                 {
                     "type": "input_text",
                     "text": (
-                        "Greet the user with 'Hello there! I am an AI voice assistant powered by "
-                        "Twilio and the OpenAI Realtime API. You can ask me for facts, jokes, or "
-                        "anything you can imagine. How can I help you?'"
+                        "Salude al usuario con '¡Hola! Soy un asistente de voz de IA con tecnología de "
+                        "Twilio y la API en tiempo real de OpenAI. Puedes pedirme datos, chistes o "
+                        "Cualquier cosa que puedas imaginar. ¿Cómo puedo ayudarte?'"
                     )
                 }
             ]
@@ -151,11 +157,11 @@ async def initialize_session(openai_ws):
 async def check_number_allowed(to):
     """Check if a number is allowed to be called."""
     try:
-        # Uncomment these lines to test numbers. Only add numbers you have permission to call
-        OVERRIDE_NUMBERS = ['+34653072842','+34678000893','+34642447846']
-        if to in OVERRIDE_NUMBERS:
-            return True
-
+        # Saltarse el filtro de llamaddas
+        #OVERRIDE_NUMBERS = ['+34653072842','+34678000893','+34642447846']
+        #if to in OVERRIDE_NUMBERS:
+            #return True
+        return True
         incoming_numbers = client.incoming_phone_numbers.list(phone_number=to)
         if incoming_numbers:
             return True
@@ -206,12 +212,16 @@ if __name__ == "__main__":
     #print(args)
     #phone_number = args.call
     phone_number='+34653072842'
+    #phone_numbers = ['+34653072842','+34619523174']
+    #phone_numbers = ['+34626545458', '+34646429175']
     print(
         'Our recommendation is to always disclose the use of AI for outbound or inbound calls.\n'
         'Reminder: All of the rules of TCPA apply even if a call is made by AI.\n'
         'Check with your counsel for legal and compliance advice.'
     )
-
+    #for number in phone_numbers:
+        #loop2=asyncio.get_event_loop()
+        #loop2.run_until_complete(make_call(number))
     loop = asyncio.get_event_loop()
     loop.run_until_complete(make_call(phone_number))
 

@@ -52,7 +52,6 @@ async def handle_media_stream(websocket: WebSocket):
     """Handle WebSocket connections between Twilio and OpenAI."""
     print("Client connected")
     await websocket.accept()
-
     async with websockets.connect(
         'wss://api.openai.com/v1/realtime?model=gpt-4o-mini-realtime-preview',
         additional_headers={

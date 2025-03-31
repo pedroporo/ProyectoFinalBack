@@ -9,4 +9,4 @@ services:
     ports:
       - "8765:8765"
     command:
-      - python call_module.py
+      - python main.py

@@ -2,14 +2,14 @@ import os
 import json
 import base64
 import asyncio
-import argparse
 from fastapi import WebSocket
 from fastapi.websockets import WebSocketDisconnect
 import websockets
 from dotenv import load_dotenv
 load_dotenv()
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-
+if not (OPENAI_API_KEY):
+    raise ValueError('Missing OpenAI environment variable. Please set them in the .env file.')
 LOG_EVENT_TYPES = [
     'error', 'response.content.done', 'rate_limits.updated', 'response.done',
     'input_audio_buffer.committed', 'input_audio_buffer.speech_stopped',
@@ -42,6 +42,7 @@ class SessionManager:
         }
         print('Enviando actualización de sesión:', json.dumps(session_update))
         await openai_ws.send(json.dumps(session_update))
+        # La IA habla primero (comentalo si no quieres que eso pase)
         await self.send_initial_conversation_item(openai_ws)
 
     async def send_initial_conversation_item(self, openai_ws):
@@ -147,14 +148,15 @@ class SessionManager:
                             # Update last_assistant_item safely
                         if response.get('item_id'):
                             self.last_assistant_item = response['item_id']
-                        await self.send_mark(websocket)
+
+                        await self.send_mark(websocket,openai_ws)
                     except Exception as e:
                         print(f"Error processing audio data: {e}")
                 if response['type'] == 'input_audio_buffer.speech_started':
                     print("Speech started detected")
                     if self.last_assistant_item:
                         print(f"Interrupting response with id: {self.last_assistant_item}")
-                        await self.handle_speech_started_event()
+                        await self.handle_speech_started_event(websocket,openai_ws)
 
         except Exception as e:
             print(f"Error al enviar datos a Twilio: {e}")
@@ -166,7 +168,7 @@ class SessionManager:
             elapsed_time = self.latest_media_timestamp - self.response_start_timestamp_twilio
             if SHOW_TIMING_MATH:
                 print(
-                    f"Calculating elapsed time for truncation: {self.latest_media_timestamp} - {self.response_start_timestamp_twilio} = {self.elapsed_time}ms")
+                    f"Calculating elapsed time for truncation: {self.latest_media_timestamp} - {self.response_start_timestamp_twilio} = {elapsed_time}ms")
 
             if self.last_assistant_item:
                 if SHOW_TIMING_MATH:
@@ -189,7 +191,7 @@ class SessionManager:
             self.last_assistant_item = None
             self.response_start_timestamp_twilio = None
 
-    async def send_mark(self,websocket):
+    async def send_mark(self,websocket,openai_ws):
         if self.stream_sid:
             mark_event = {
                 "event": "mark",
@@ -198,4 +200,4 @@ class SessionManager:
             }
             await websocket.send_json(mark_event)
             self.mark_queue.append('responsePart')
-        await asyncio.gather(self.receive_from_twilio(), self.send_to_twilio())
+        #await asyncio.gather(self.receive_from_twilio(websocket,openai_ws), self.send_to_twilio(websocket,openai_ws))

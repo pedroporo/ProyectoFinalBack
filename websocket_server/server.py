@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 import uvicorn
 import re
+from app.agents.routers import app as agents_router
 
 load_dotenv()
 
@@ -29,7 +30,8 @@ class Server:
         self.app = FastAPI()
         self.PROFILE_ID = PROFILE_ID
         self.PROFILE_DATA={}
-        with open(f"./Profiles/{self.PROFILE_ID}.json", mode="r", encoding="utf8") as data:
+        self.app.include_router(agents_router)
+        with open(f"../Profiles/{self.PROFILE_ID}.json", mode="r", encoding="utf8") as data:
             self.PROFILE_DATA=json.load(data)
         self.session_manager = SessionManager(VOICE=self.PROFILE_DATA["VOICE"],SYSTEM_MESSAGE=self.PROFILE_DATA["INSTRUCCTIONS"])
         self.PORT=PORT
@@ -54,4 +56,4 @@ class Server:
 if __name__ == "__main__":
     server = Server(PROFILE_ID=2)
     server.run()
-    print("Hola: " + server.CALL_ID)
+    #print("Hola: " + server.CALL_ID)

@@ -1,5 +1,15 @@
 version: '3'
 services:
+  mysql:
+    image: mysql
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./mysql/db:/docker-entrypoint-initdb.d
+      - ./mysql/conf.d:/etc/mysql/conf.d
+    env_file:
+      - ./.env
+    tty: true
   appf:
     build:
       context: .

@@ -62,8 +62,18 @@ async def make_call(phone_number_to_call: str):
     call = client.calls.create(
         from_=PHONE_NUMBER_FROM,
         to=phone_number_to_call,
-        twiml=outbound_twiml
+        twiml=outbound_twiml,
+        record=True,
+        machine_detection=True,
+        machine_detection_timeout=15,
+        time_limit=100,
+        timeout=15,
+        status_callback=f"https://{DOMAIN}/events",
+        status_callback_event=["initiated", "answered"],
+        status_callback_method="POST",
+
     )
+
     call_id=call.sid
     await log_call_sid(call_id)
 

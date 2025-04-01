@@ -40,6 +40,9 @@ class Server:
         @self.app.websocket('/media-stream')
         async def media_stream(websocket: WebSocket):
             await self.session_manager.handle_media_stream(websocket)
+        @self.app.post('/events')
+        async def event_manager(eventos):
+            print("Hola mundo"+eventos)
 
     def run(self):
         uvicorn.run(self.app, host="0.0.0.0", port=self.PORT)

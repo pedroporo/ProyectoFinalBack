@@ -14,6 +14,7 @@ raw_domain = os.getenv('DOMAIN', '')
 DOMAIN = re.sub(r'(^\w+:|^)\/\/|\/+$', '', raw_domain) # Strip protocols and trailing slashes from DOMAIN
 call_id=None
 PORT = int(os.getenv('PORT', 8765))
+server = Server(PROFILE_ID=2)
 
 if not (TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and PHONE_NUMBER_FROM and OPENAI_API_KEY):
     raise ValueError('Missing Twilio and/or OpenAI environment variables. Please set them in the .env file.')
@@ -66,12 +67,13 @@ async def make_call(phone_number_to_call: str):
         record=True,
         machine_detection=True,
         machine_detection_timeout=15,
-        time_limit=100,
+        time_limit=600,
         timeout=15,
 
     )
-
+    #print(call.__dict__)
     call_id=call.sid
+    server.CALL_ID=call_id
     await log_call_sid(call_id)
 
 
@@ -88,7 +90,6 @@ if __name__ == "__main__":
         #loop2.run_until_complete(make_call(number))
     loop = asyncio.get_event_loop()
     loop.run_until_complete(make_call(phone_number))
-    server = Server(PROFILE_ID=2)
     server.run()
     #server.CALL_ID=call_id
 

@@ -7,7 +7,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from contextlib import asynccontextmanager
 from sshtunnel import SSHTunnelForwarder
 import asyncio
-from app.agents.models import Base
+
 
 load_dotenv()
 
@@ -30,14 +30,19 @@ DB_PORT=os.getenv('DB_PORT')
 DATABASE_URL=f"mysql+asyncmy://{DB_USER}:{DB_PASS}@localhost:{ssh_tunnel.local_bind_port}/{DATABASE_NAME}"
 #Base = declarative_base()
 
-engine=create_async_engine(DATABASE_URL,echo=True)
+engine=create_async_engine(DATABASE_URL,echo=False)
 
 async_session_factory=async_sessionmaker(bind=engine,expire_on_commit=False)
 
 async def init_models():
     async with engine.begin() as conn:
+        from app.agents.models import Base
+        from app.calls.models import Base as call_base
+        await conn.run_sync(call_base.metadata.drop_all)
         await conn.run_sync(Base.metadata.drop_all)
+
         await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(call_base.metadata.create_all)
 
 
 

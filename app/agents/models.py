@@ -1,14 +1,21 @@
 import os
 import json
 import enum
+import requests
 from sqlalchemy import Column
+from sqlalchemy.future import select
+#from main import call_id
 from twilio.rest import Client
 from dotenv import load_dotenv
 import re
 import time
 import  sqlalchemy
 from sqlalchemy.ext.declarative import declarative_base
+
+from app.db.session import get_db_session
+
 #from app.db.session import Base
+
 load_dotenv()
 # Configuration
 TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
@@ -36,7 +43,7 @@ class Agent(Base):
 
     id=Column(sqlalchemy.Integer,primary_key=True,index=True)
     name=Column(sqlalchemy.String(20),nullable=False)
-    voice=Column(sqlalchemy.Enum(VoiceOptionsEnum),nullable=False,default=VoiceOptionsEnum.alloy)
+    voice=Column(sqlalchemy.Enum(VoiceOptionsEnum),nullable=False,default=VoiceOptionsEnum.alloy,server_default=VoiceOptionsEnum.alloy.value)
     descripcion=Column(sqlalchemy.String(300),nullable=True)
     instrucciones=Column(sqlalchemy.String(65535),nullable=False)
     empezar_ia=Column(sqlalchemy.Boolean,nullable=False,default=True)
@@ -44,6 +51,7 @@ class Agent(Base):
     creatividadVoz=Column(sqlalchemy.Float,default=0.6)
     silenceCloseCall=Column(sqlalchemy.Integer,default=30)
     callMaxDuration=Column(sqlalchemy.Integer)
+    #calls= relationship("Call", back_populates="agent", cascade="all, delete-orphan")
 
     def to_dict(self):
         """Convierte la instancia del modelo a un diccionario serializable"""
@@ -91,12 +99,27 @@ class Agent(Base):
             print(f"Error checking phone number: {e}")
             return False
 
-    async def make_call(self, numeros):
+    async def make_call(self):
     #async def make_call(self,phone_number_to_call: str):
         """Make an outbound call."""
         #if not phone_number_to_call:
         #    raise ValueError("Please provide a phone number to call.")
+        from ..calls.models import Call
 
+        db = get_db_session()
+        result = await db.execute(select(Call).where(Call.agent_id==self.id))
+        numeros = result.scalar()
+
+        payload = json.dumps({
+            "voice": self.voice,
+            "instrucciones": self.instrucciones,
+            "creatividadVoz": self.creatividadVoz
+        })
+        headers = {
+            'Content-Type': 'application/json'
+        }
+
+        response = requests.request("POST", f'https://{DOMAIN}/setSession/', headers=headers, data=payload)
         #is_allowed = await self.check_number_allowed(phone_number_to_call)
         #if not is_allowed:
         #    raise ValueError(
@@ -109,7 +132,7 @@ class Agent(Base):
         self.client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
         outbound_twiml = (
             f'<?xml version="1.0" encoding="UTF-8"?>'
-            f'<Response><Connect><Stream url="wss://{DOMAIN}/media-stream" /></Connect></Response>'
+            f'<Response><Connect><Stream url="wss://{DOMAIN}/media-stream" /></Connect><Pause length="{self.silenceCloseCall}"/><Hangup/></Response>'
         )
         for phone_number_to_call in numeros:
             # Realiza la llamada
@@ -121,7 +144,7 @@ class Agent(Base):
                 machine_detection=True,
                 machine_detection_timeout=15,
                 time_limit=self.callMaxDuration,
-                timeout=self.silenceCloseCall,
+                timeout=15,
 
             )
 
@@ -136,17 +159,22 @@ class Agent(Base):
 
 
     def esperar_a_que_finalice(self,call_sid):
+        from ..calls.models import Call
+
         while True:
             llamada = self.client.calls(call_sid).fetch()
             print(f"Estado actual de la llamada {call_sid}: {llamada.status}")
             if llamada.status in ['completed', 'failed', 'busy', 'no-answer']:
-                self.client.calls(call_sid).transcriptions.create()
+                llamada.transcriptions.create()
+
+                new_call=Call(call_id=llamada.sid,status=llamada.status,call_date=llamada.date_created,call_duration=llamada.duration,call_json_twilio=llamada.__dict__)
                 # La llamada ha finalizado (o no pudo completarse)
                 break
             time.sleep(5)  # Espera 5 segundos antes de volver a verificar
     async def log_call_sid(self,call_sid):
         """Log the call SID."""
         print(f"Call started with SID: {call_sid}")
+
 
 
 

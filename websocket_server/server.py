@@ -5,9 +5,10 @@ from fastapi import FastAPI, WebSocket,Request,Form
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 import uvicorn
-import re
-from app.agents.routers import app as agents_router
 
+import re
+from app.agents.routers import router as agents_router
+from app.calls.routers import router as calls_router
 load_dotenv()
 
 # Configuration
@@ -18,10 +19,6 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 raw_domain = os.getenv('DOMAIN', '')
 DOMAIN = re.sub(r'(^\w+:|^)\/\/|\/+$', '', raw_domain) # Strip protocols and trailing slashes from DOMAIN
 PORT = int(os.getenv('PORT', 8765))
-SYSTEM_MESSAGE = (
-    "Eres un asistente de IA servicial y jovial, a quien le encanta charlar sobre cualquier tema que interese al usuario y siempre está dispuesto a ofrecerle información. Te encantan los chistes de papá, los chistes de búhos y los rickrolls, sutilmente. Mantén siempre una actitud positiva, pero incluye un chiste cuando sea necesario. "
-)
-VOICE = 'alloy'
 app = FastAPI()
 
 
@@ -30,12 +27,13 @@ class Server:
         self.app = FastAPI()
         self.PROFILE_ID = PROFILE_ID
         self.PROFILE_DATA={}
-        #self.app.include_router(agents_router)
-        with open(f"./Profiles/{self.PROFILE_ID}.json", mode="r", encoding="utf8") as data:
-            self.PROFILE_DATA=json.load(data)
-            print(self.PROFILE_DATA)
-        self.session_manager = SessionManager(VOICE=self.PROFILE_DATA["VOICE"],SYSTEM_MESSAGE=self.PROFILE_DATA["INSTRUCCTIONS"],CREATIVITY=0.6)
-        #self.session_manager=SessionManager()
+        self.app.include_router(agents_router)
+        self.app.include_router(calls_router)
+        #with open(f"./Profiles/{self.PROFILE_ID}.json", mode="r", encoding="utf8") as data:
+        #    self.PROFILE_DATA=json.load(data)
+        #self.session_manager = SessionManager(VOICE=self.PROFILE_DATA["VOICE"],SYSTEM_MESSAGE=self.PROFILE_DATA["INSTRUCCTIONS"],CREATIVITY=0.6)
+        self.session_manager=SessionManager()
+
         self.PORT=PORT
         self.CALL_ID=None
         @self.app.get('/', response_class=JSONResponse)
@@ -43,11 +41,13 @@ class Server:
             return {"message": "Twilio Media Stream Server está corriendo!"}
         @self.app.websocket('/media-stream')
         async def media_stream(websocket: WebSocket):
+            self.session_manager.CALL_ID=self.CALL_ID
             await self.session_manager.handle_media_stream(websocket)
-        #@self.app.post('/setSession')
-        #async def set_session(request:Request):
-        #    params=await request.json()
-        #    self.session_manager=SessionManager(VOICE=params['voice'],SYSTEM_MESSAGE=params['instrucciones'],CREATIVITY=params['creatividadVoz'])
+
+        @self.app.post('/setSession')
+        async def set_session(request:Request):
+            params=await request.json()
+            self.session_manager=SessionManager(VOICE=params['voice'],SYSTEM_MESSAGE=params['instrucciones'],CREATIVITY=params['creatividadVoz'])
 
 
     def run(self):

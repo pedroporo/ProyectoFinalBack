@@ -6,7 +6,11 @@ from fastapi import WebSocket
 from fastapi.websockets import WebSocketDisconnect
 import websockets
 from dotenv import load_dotenv
+from twilio.rest import Client
 load_dotenv()
+TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
+TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
+PHONE_NUMBER_FROM = os.getenv('TWILIO_NUMBER')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 if not (OPENAI_API_KEY):
     raise ValueError('Missing OpenAI environment variable. Please set them in the .env file.')
@@ -16,6 +20,8 @@ LOG_EVENT_TYPES = [
     'input_audio_buffer.speech_started', 'session.created'
 ]
 SHOW_TIMING_MATH = False
+
+
 class SessionManager:
     def __init__(self,VOICE=None,SYSTEM_MESSAGE=None,CREATIVITY=0.6):
         self.stream_sid = None
@@ -26,7 +32,9 @@ class SessionManager:
         self.VOICE=VOICE
         self.SYSTEM_MESSAGE=SYSTEM_MESSAGE
         self.CREATIVITY=CREATIVITY
-        print(f"Voice: {self.VOICE} Instructions: {self.SYSTEM_MESSAGE} Creativity: {self.CREATIVITY}")
+        self.CALL_ID=None
+        self.client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        #print(f"Voice: {self.VOICE} Instructions: {self.SYSTEM_MESSAGE} Creativity: {self.CREATIVITY}")
 
     async def initialize_session(self, openai_ws):
         """Inicializa la sesión con OpenAI."""
@@ -114,6 +122,8 @@ class SessionManager:
                         self.mark_queue.pop(0)
                 elif data['event'] == 'stop':
                     print("Cliente detuvo la llamada")
+                    llamada = self.client.calls(self.CALL_ID).fetch()
+
                     await openai_ws.close()
 
         except WebSocketDisconnect:

@@ -8,7 +8,7 @@ import re
 import time
 import  sqlalchemy
 from sqlalchemy.ext.declarative import declarative_base
-from app.db.session import Base
+#from app.db.session import Base
 load_dotenv()
 # Configuration
 TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
@@ -18,7 +18,7 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 raw_domain = os.getenv('DOMAIN', '')
 DOMAIN = re.sub(r'(^\w+:|^)\/\/|\/+$', '', raw_domain)  # Strip protocols and trailing slashes from DOMAIN
 
-#Base=declarative_base()
+Base=declarative_base()
 
 
 class VoiceOptionsEnum(enum.Enum):
@@ -37,7 +37,7 @@ class Agent(Base):
     id=Column(sqlalchemy.Integer,primary_key=True,index=True)
     name=Column(sqlalchemy.String(20),nullable=False)
     voice=Column(sqlalchemy.Enum(VoiceOptionsEnum),nullable=False,default=VoiceOptionsEnum.alloy)
-    descripccion=Column(sqlalchemy.String(300),nullable=True)
+    descripcion=Column(sqlalchemy.String(300),nullable=True)
     instrucciones=Column(sqlalchemy.String(65535),nullable=False)
     empezar_ia=Column(sqlalchemy.Boolean,nullable=False,default=True)
     velozidadVoz=Column(sqlalchemy.Float,default=1)
@@ -120,20 +120,17 @@ class Agent(Base):
                 record=True,
                 machine_detection=True,
                 machine_detection_timeout=15,
-                time_limit=100,
-                timeout=15,
-                status_callback=f"https://{DOMAIN}/events",
-                status_callback_event=["initiated", "answered"],
-                status_callback_method="POST",
+                time_limit=self.callMaxDuration,
+                timeout=self.silenceCloseCall,
 
             )
 
             call_id = call.sid
             #await self.log_call_sid(call_id)
-        print(f"Llamada iniciada al número: {phone_number_to_call}, SID: {call.sid}")
+            print(f"Llamada iniciada al número: {phone_number_to_call}, SID: {call.sid}")
 
         # Espera a que esta llamada termine antes de continuar con la siguiente
-        self.esperar_a_que_finalice(call.sid)
+            self.esperar_a_que_finalice(call.sid)
 
 
 
@@ -143,6 +140,7 @@ class Agent(Base):
             llamada = self.client.calls(call_sid).fetch()
             print(f"Estado actual de la llamada {call_sid}: {llamada.status}")
             if llamada.status in ['completed', 'failed', 'busy', 'no-answer']:
+                self.client.calls(call_sid).transcriptions.create()
                 # La llamada ha finalizado (o no pudo completarse)
                 break
             time.sleep(5)  # Espera 5 segundos antes de volver a verificar

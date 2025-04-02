@@ -7,7 +7,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from contextlib import asynccontextmanager
 from sshtunnel import SSHTunnelForwarder
 import asyncio
-#from app.agents.models import Base
+from app.agents.models import Base
 
 load_dotenv()
 
@@ -28,7 +28,7 @@ DB_PORT=os.getenv('DB_PORT')
 
 #DATABASE_URL=f"mysql+asyncmy://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DATABASE_NAME}"
 DATABASE_URL=f"mysql+asyncmy://{DB_USER}:{DB_PASS}@localhost:{ssh_tunnel.local_bind_port}/{DATABASE_NAME}"
-Base = declarative_base()
+#Base = declarative_base()
 
 engine=create_async_engine(DATABASE_URL,echo=True)
 
@@ -40,8 +40,8 @@ async def init_models():
         await conn.run_sync(Base.metadata.create_all)
 
 
-@asynccontextmanager
-async def get_db_session():
+
+async def get_db_session() -> AsyncSession:
     async with async_session_factory() as session:
         try:
             yield session
@@ -49,6 +49,8 @@ async def get_db_session():
         except SQLAlchemyError:
             await session.rollback()
             raise
+        finally:
+            await session.close()
 if __name__ == "__main__":
     asyncio.run(init_models())
     print("¡Tablas creadas exitosamente!")

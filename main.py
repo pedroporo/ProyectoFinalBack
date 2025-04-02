@@ -56,7 +56,7 @@ async def make_call(phone_number_to_call: str):
 
     outbound_twiml = (
         f'<?xml version="1.0" encoding="UTF-8"?>'
-        f'<Response><Connect><Stream url="wss://{DOMAIN}/media-stream" /></Connect></Response>'
+        f'<Response><Connect><Stream url="wss://{DOMAIN}/media-stream" /></Connect><Pause length="15"/><Hangup/></Response>'
     )
 
     call = client.calls.create(
@@ -68,9 +68,6 @@ async def make_call(phone_number_to_call: str):
         machine_detection_timeout=15,
         time_limit=100,
         timeout=15,
-        status_callback=f"https://{DOMAIN}/events",
-        status_callback_event=["initiated", "answered"],
-        status_callback_method="POST",
 
     )
 
@@ -84,8 +81,8 @@ async def log_call_sid(call_sid):
 
 
 if __name__ == "__main__":
-    phone_number='+34678000893'
-
+    #phone_number='+34678000893'
+    phone_number = '+34653072842'
     #for number in phone_numbers:
         #loop2=asyncio.get_event_loop()
         #loop2.run_until_complete(make_call(number))
@@ -93,5 +90,5 @@ if __name__ == "__main__":
     loop.run_until_complete(make_call(phone_number))
     server = Server(PROFILE_ID=2)
     server.run()
-    server.CALL_ID=call_id
+    #server.CALL_ID=call_id
 

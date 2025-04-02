@@ -17,7 +17,7 @@ LOG_EVENT_TYPES = [
 ]
 SHOW_TIMING_MATH = False
 class SessionManager:
-    def __init__(self,VOICE=None,SYSTEM_MESSAGE=None):
+    def __init__(self,VOICE=None,SYSTEM_MESSAGE=None,CREATIVITY=0.6):
         self.stream_sid = None
         self.latest_media_timestamp = 0
         self.last_assistant_item = None
@@ -25,6 +25,8 @@ class SessionManager:
         self.response_start_timestamp_twilio = None
         self.VOICE=VOICE
         self.SYSTEM_MESSAGE=SYSTEM_MESSAGE
+        self.CREATIVITY=CREATIVITY
+        print(f"Voice: {self.VOICE} Instructions: {self.SYSTEM_MESSAGE} Creativity: {self.CREATIVITY}")
 
     async def initialize_session(self, openai_ws):
         """Inicializa la sesión con OpenAI."""

@@ -1,7 +1,7 @@
 import os
 import json
 from websocket_server.sessionManager import SessionManager
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, WebSocket,Request,Form
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 import uvicorn
@@ -30,10 +30,12 @@ class Server:
         self.app = FastAPI()
         self.PROFILE_ID = PROFILE_ID
         self.PROFILE_DATA={}
-        self.app.include_router(agents_router)
-        with open(f"../Profiles/{self.PROFILE_ID}.json", mode="r", encoding="utf8") as data:
+        #self.app.include_router(agents_router)
+        with open(f"./Profiles/{self.PROFILE_ID}.json", mode="r", encoding="utf8") as data:
             self.PROFILE_DATA=json.load(data)
-        self.session_manager = SessionManager(VOICE=self.PROFILE_DATA["VOICE"],SYSTEM_MESSAGE=self.PROFILE_DATA["INSTRUCCTIONS"])
+            print(self.PROFILE_DATA)
+        self.session_manager = SessionManager(VOICE=self.PROFILE_DATA["VOICE"],SYSTEM_MESSAGE=self.PROFILE_DATA["INSTRUCCTIONS"],CREATIVITY=0.6)
+        #self.session_manager=SessionManager()
         self.PORT=PORT
         self.CALL_ID=None
         @self.app.get('/', response_class=JSONResponse)
@@ -42,9 +44,11 @@ class Server:
         @self.app.websocket('/media-stream')
         async def media_stream(websocket: WebSocket):
             await self.session_manager.handle_media_stream(websocket)
-        @self.app.post('/events')
-        async def event_manager(eventos):
-            print("Hola mundo"+eventos)
+        #@self.app.post('/setSession')
+        #async def set_session(request:Request):
+        #    params=await request.json()
+        #    self.session_manager=SessionManager(VOICE=params['voice'],SYSTEM_MESSAGE=params['instrucciones'],CREATIVITY=params['creatividadVoz'])
+
 
     def run(self):
         uvicorn.run(self.app, host="0.0.0.0", port=self.PORT)

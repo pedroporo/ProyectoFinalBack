@@ -54,8 +54,8 @@ async def get_db_session() -> AsyncSession:
         except SQLAlchemyError:
             await session.rollback()
             raise
-        finally:
-            await session.close()
+        #finally:
+        #    await session.close()
 if __name__ == "__main__":
     asyncio.run(init_models())
     print("¡Tablas creadas exitosamente!")

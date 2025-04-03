@@ -122,8 +122,6 @@ class SessionManager:
                         self.mark_queue.pop(0)
                 elif data['event'] == 'stop':
                     print("Cliente detuvo la llamada")
-                    llamada = self.client.calls(self.CALL_ID).fetch()
-
                     await openai_ws.close()
 
         except WebSocketDisconnect:

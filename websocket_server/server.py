@@ -1,5 +1,7 @@
 import os
 import json
+
+from app.agents.schemas import AgentResponse
 from websocket_server.sessionManager import SessionManager
 from fastapi import FastAPI, WebSocket,Request,Form
 from fastapi.responses import JSONResponse
@@ -32,7 +34,8 @@ class Server:
         #with open(f"./Profiles/{self.PROFILE_ID}.json", mode="r", encoding="utf8") as data:
         #    self.PROFILE_DATA=json.load(data)
         #self.session_manager = SessionManager(VOICE=self.PROFILE_DATA["VOICE"],SYSTEM_MESSAGE=self.PROFILE_DATA["INSTRUCCTIONS"],CREATIVITY=0.6)
-        self.session_manager=SessionManager()
+        self.session_manager = SessionManager(VOICE="alloy",SYSTEM_MESSAGE="Di hola", CREATIVITY=0.6)
+        #self.session_manager=SessionManager()
 
         self.PORT=PORT
         self.CALL_ID=None
@@ -43,11 +46,14 @@ class Server:
         async def media_stream(websocket: WebSocket):
             self.session_manager.CALL_ID=self.CALL_ID
             await self.session_manager.handle_media_stream(websocket)
+        #from app.agents.schemas import AgentCreate
+        @self.app.post('/setSession', response_class=JSONResponse)
+        async def set_session(agent:AgentResponse):
+            print(agent.dict())
 
-        @self.app.post('/setSession')
-        async def set_session(request:Request):
-            params=await request.json()
-            self.session_manager=SessionManager(VOICE=params['voice'],SYSTEM_MESSAGE=params['instrucciones'],CREATIVITY=params['creatividadVoz'])
+            print(f"Session: {agent}")
+            self.session_manager=SessionManager(VOICE=agent.voice,SYSTEM_MESSAGE=agent.instrucciones,CREATIVITY=agent.creatividadVoz)
+            return {"message": "La sesion a sido actualizada"}
 
 
     def run(self):

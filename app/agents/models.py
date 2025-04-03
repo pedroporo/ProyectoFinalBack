@@ -1,16 +1,23 @@
 import os
 import json
 import enum
-import requests
+import asyncio
+from fastapi import Depends
+import httpx
 from sqlalchemy import Column
 from sqlalchemy.future import select
+import  sqlalchemy
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.ext.asyncio import AsyncSession
+
 #from main import call_id
 from twilio.rest import Client
 from dotenv import load_dotenv
 import re
 import time
-import  sqlalchemy
-from sqlalchemy.ext.declarative import declarative_base
+
+#from websocket_server.server import Server
+#from websocket_server.sessionManager import SessionManager
 
 from app.db.session import get_db_session
 
@@ -23,8 +30,8 @@ TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
 PHONE_NUMBER_FROM = os.getenv('TWILIO_NUMBER')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 raw_domain = os.getenv('DOMAIN', '')
-DOMAIN = re.sub(r'(^\w+:|^)\/\/|\/+$', '', raw_domain)  # Strip protocols and trailing slashes from DOMAIN
-
+DOMAIN = re.sub(r'(^\w+:|^)\/\/|\/+$', '', raw_domain)
+PORT = int(os.getenv('PORT', 8765))
 Base=declarative_base()
 
 
@@ -99,27 +106,40 @@ class Agent(Base):
             print(f"Error checking phone number: {e}")
             return False
 
-    async def make_call(self):
+    async def make_call(self, db):
     #async def make_call(self,phone_number_to_call: str):
         """Make an outbound call."""
         #if not phone_number_to_call:
         #    raise ValueError("Please provide a phone number to call.")
         from ..calls.models import Call
+        #db = await anext(get_db_session())
+        #db=get_db_session()
 
-        db = get_db_session()
-        result = await db.execute(select(Call).where(Call.agent_id==self.id))
-        numeros = result.scalar()
-
+        result = await db.execute(select(Call).where(Call.agent_id == self.id and Call.status == "ready"))
+        numeros = result.scalars().all()
+        print(numeros)
         payload = json.dumps({
-            "voice": self.voice,
+            "voice": self.voice.value,
             "instrucciones": self.instrucciones,
             "creatividadVoz": self.creatividadVoz
         })
+        #print(payload)
         headers = {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
         }
 
-        response = requests.request("POST", f'https://{DOMAIN}/setSession/', headers=headers, data=payload)
+        #response = requests.request("POST", f'https://{DOMAIN}/setSession/',headers=headers, data=payload,json=payload,allow_redirects=True)
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f'https://{DOMAIN}/setSession',
+                json=self.to_dict(),
+                headers=headers,
+
+            )
+        #response = requests.request("POST", f'https://{DOMAIN}/setSession/', headers=headers, json=self.to_dict(),allow_redirects=True,verify=False)
+        #print(response.text)
+        #Server.session_manager=SessionManager(VOICE=self.voice.value,SYSTEM_MESSAGE=self.instrucciones,CREATIVITY=self.creatividadVoz)
         #is_allowed = await self.check_number_allowed(phone_number_to_call)
         #if not is_allowed:
         #    raise ValueError(
@@ -136,9 +156,10 @@ class Agent(Base):
         )
         for phone_number_to_call in numeros:
             # Realiza la llamada
+            print('Empezando llamada')
             call = self.client.calls.create(
                 from_=PHONE_NUMBER_FROM,
-                to=phone_number_to_call,
+                to=phone_number_to_call.phone_number,
                 twiml=outbound_twiml,
                 record=True,
                 machine_detection=True,
@@ -150,7 +171,7 @@ class Agent(Base):
 
             call_id = call.sid
             #await self.log_call_sid(call_id)
-            print(f"Llamada iniciada al número: {phone_number_to_call}, SID: {call.sid}")
+            print(f"Llamada iniciada al número: {phone_number_to_call.phone_number}, SID: {call.sid}")
 
         # Espera a que esta llamada termine antes de continuar con la siguiente
             self.esperar_a_que_finalice(call.sid)
@@ -165,9 +186,9 @@ class Agent(Base):
             llamada = self.client.calls(call_sid).fetch()
             print(f"Estado actual de la llamada {call_sid}: {llamada.status}")
             if llamada.status in ['completed', 'failed', 'busy', 'no-answer']:
-                llamada.transcriptions.create()
+                #llamada.transcriptions.create()
 
-                new_call=Call(call_id=llamada.sid,status=llamada.status,call_date=llamada.date_created,call_duration=llamada.duration,call_json_twilio=llamada.__dict__)
+                #new_call=Call(call_id=llamada.sid,status=llamada.status,call_date=llamada.date_created,call_duration=llamada.duration,call_json_twilio=llamada.__dict__)
                 # La llamada ha finalizado (o no pudo completarse)
                 break
             time.sleep(5)  # Espera 5 segundos antes de volver a verificar

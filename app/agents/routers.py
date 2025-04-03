@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 #from app.agents.models import Agent
 #from app.agents.schemas import AgentCreate,AgentResponse
-from .schemas import AgentCreate,AgentResponse,AgentBase
+from .schemas import AgentCreate,AgentResponse
 from .models import Agent
 from app.db.session import get_db_session
 router=APIRouter()
@@ -31,10 +31,12 @@ async def get_agent(agent_id: int, db: AsyncSession = Depends(get_db_session)):
     if not agent:
         raise HTTPException(status_code=404, detail="Agente no encontrado")
     return JSONResponse(content=agent.to_dict(), status_code=200)
-@router.post("/agent/{agent_id}/addPhoneToCall",response_model=AgentResponse)
-async def add_phone_to_call(agent_id: int, db: AsyncSession = Depends(get_db_session)):
+@router.get("/agents/{agent_id}/makeCalls",response_model=None)
+async def agent_make_calls(agent_id: int, db: AsyncSession = Depends(get_db_session)):
     result = await db.execute(select(Agent).where(Agent.id == agent_id))
     agent = result.scalar()
+    await agent.make_call(db)
+
     if not agent:
         raise HTTPException(status_code=404, detail="Agente no encontrado")
-    return JSONResponse(content=agent.to_dict(), status_code=200)
+    #return JSONResponse(content=agent.to_dict(), status_code=200)

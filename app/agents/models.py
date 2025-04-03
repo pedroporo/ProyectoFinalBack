@@ -118,11 +118,7 @@ class Agent(Base):
         result = await db.execute(select(Call).where(Call.agent_id == self.id and Call.status == "ready"))
         numeros = result.scalars().all()
         print(numeros)
-        payload = json.dumps({
-            "voice": self.voice.value,
-            "instrucciones": self.instrucciones,
-            "creatividadVoz": self.creatividadVoz
-        })
+
         #print(payload)
         headers = {
             'Content-Type': 'application/json',
@@ -130,13 +126,7 @@ class Agent(Base):
 
         #response = requests.request("POST", f'https://{DOMAIN}/setSession/',headers=headers, data=payload,json=payload,allow_redirects=True)
 
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f'https://{DOMAIN}/setSession',
-                json=self.to_dict(),
-                headers=headers,
 
-            )
         #response = requests.request("POST", f'https://{DOMAIN}/setSession/', headers=headers, json=self.to_dict(),allow_redirects=True,verify=False)
         #print(response.text)
         #Server.session_manager=SessionManager(VOICE=self.voice.value,SYSTEM_MESSAGE=self.instrucciones,CREATIVITY=self.creatividadVoz)
@@ -152,9 +142,25 @@ class Agent(Base):
         self.client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
         outbound_twiml = (
             f'<?xml version="1.0" encoding="UTF-8"?>'
-            f'<Response><Connect><Stream url="wss://{DOMAIN}/media-stream" /></Connect><Pause length="{self.silenceCloseCall}"/><Hangup/></Response>'
+            f'<Response><Connect><Stream url="wss://{DOMAIN}/media-stream" />  </Connect><Pause length="{self.silenceCloseCall}"/><Hangup/></Response>'
         )
         for phone_number_to_call in numeros:
+
+            #test=str(self.instrucciones).format(customer_name=phone_number_to_call.contact_name)
+            #print(self.instrucciones.format(customer_name=phone_number_to_call.contact_name))
+
+            payload = {
+                "voice": self.voice.value,
+                "instrucciones": self.instrucciones.format(customer_name=phone_number_to_call.contact_name),
+                "creatividadVoz": self.creatividadVoz
+            }
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f'https://{DOMAIN}/setSession',
+                    json=payload,
+                    headers=headers,
+
+                )
             # Realiza la llamada
             print('Empezando llamada')
             call = self.client.calls.create(
@@ -168,30 +174,45 @@ class Agent(Base):
                 timeout=15,
 
             )
-
             call_id = call.sid
+            phone_number_to_call.call_id=call_id
+            phone_number_to_call.update()
             #await self.log_call_sid(call_id)
             print(f"Llamada iniciada al número: {phone_number_to_call.phone_number}, SID: {call.sid}")
 
         # Espera a que esta llamada termine antes de continuar con la siguiente
-            self.esperar_a_que_finalice(call.sid)
+            await self.esperar_a_que_finalice(call.sid,phone_number_to_call)
+            await asyncio.sleep(5)  # Espera 5 segundos entre llamadas
 
 
 
-
-    def esperar_a_que_finalice(self,call_sid):
-        from ..calls.models import Call
-
+    async def esperar_a_que_finalice(self, call_sid,call_db):
+        """Espera asincrónicamente a que termine una llamada"""
+        #from ..calls.models import Call
         while True:
-            llamada = self.client.calls(call_sid).fetch()
-            print(f"Estado actual de la llamada {call_sid}: {llamada.status}")
-            if llamada.status in ['completed', 'failed', 'busy', 'no-answer']:
-                #llamada.transcriptions.create()
+            # Ejecuta la operación síncrona de Twilio en un hilo separado
+            llamada = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: self.client.calls(call_sid).fetch()
+            )
 
-                #new_call=Call(call_id=llamada.sid,status=llamada.status,call_date=llamada.date_created,call_duration=llamada.duration,call_json_twilio=llamada.__dict__)
-                # La llamada ha finalizado (o no pudo completarse)
+            print(f"Estado llamada {call_sid}: {llamada.status}")
+
+            if llamada.status in ['completed', 'failed', 'busy', 'no-answer']:
+                #llamada.recordings.list()[0]..transcriptions.create()
+                #print(llamada.transcriptions)
+                #await asyncio.sleep(30)
+                #print(llamada._proxy.__dict__)
+                #print(f"Llamada a dict: {llamada.__dict__}")
+                call_db.call_id=llamada.sid
+                call_db.status=llamada.status
+                call_db.call_date=llamada.date_created
+                call_db.call_duration=llamada.duration
+                call_db.call_json_twilio=f'{llamada.__dict__}'
+                call_db.update()
                 break
-            time.sleep(5)  # Espera 5 segundos antes de volver a verificar
+
+            await asyncio.sleep(5)  # Consulta cada 5 segundos sin bloquear
     async def log_call_sid(self,call_sid):
         """Log the call SID."""
         print(f"Call started with SID: {call_sid}")

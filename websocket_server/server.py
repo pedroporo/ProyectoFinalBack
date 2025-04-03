@@ -44,15 +44,17 @@ class Server:
             return {"message": "Twilio Media Stream Server está corriendo!"}
         @self.app.websocket('/media-stream')
         async def media_stream(websocket: WebSocket):
-            self.session_manager.CALL_ID=self.CALL_ID
+            #self.session_manager.CALL_ID=self.CALL_ID
             await self.session_manager.handle_media_stream(websocket)
         #from app.agents.schemas import AgentCreate
         @self.app.post('/setSession', response_class=JSONResponse)
-        async def set_session(agent:AgentResponse):
-            print(agent.dict())
-
-            print(f"Session: {agent}")
-            self.session_manager=SessionManager(VOICE=agent.voice,SYSTEM_MESSAGE=agent.instrucciones,CREATIVITY=agent.creatividadVoz)
+        #async def set_session(agent:AgentResponse):
+        async def set_session(request: Request):
+            #print(agent.dict())
+            agent=await request.json()
+            #print(f"Session: {agent}")
+            #self.session_manager=SessionManager(VOICE=agent.voice,SYSTEM_MESSAGE=agent.instrucciones,CREATIVITY=agent.creatividadVoz)
+            self.session_manager = SessionManager(VOICE=agent['voice'], SYSTEM_MESSAGE=agent['instrucciones'],CREATIVITY=agent['creatividadVoz'])
             return {"message": "La sesion a sido actualizada"}
 
 

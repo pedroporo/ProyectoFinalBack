@@ -1,14 +1,20 @@
 import os
 import json
 import enum
-from sqlalchemy import Column
+from sqlalchemy import Column, update
 from twilio.rest import Client
 from dotenv import load_dotenv
 import re
 import time
 import  sqlalchemy
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, mapped_column
+from sqlalchemy.orm.attributes import InstrumentedAttribute
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from sqlalchemy import update
+
+from app.db.session import get_db_session
+
 #from app.db.session import Base
 load_dotenv()
 # Configuration
@@ -56,3 +62,18 @@ class Call(Base):
     def toJSON(self):
 
         return json.dumps(self.to_dict(), indent=4)
+
+    async def update(self):
+        #s = get_db_session()
+        async with get_db_session() as s:
+            mapped_values = {}
+            for item in Call.__dict__.items():
+                field_name = item[0]
+                field_type = item[1]
+                is_column = isinstance(field_type, InstrumentedAttribute)
+                if is_column:
+                    mapped_values[field_name] = getattr(self, field_name)
+
+        #s.query(Call).filter(Call.call_id == self.call_id).update(mapped_values)
+            await s.execute(update(Call).where(Call.id == self.id).values(**mapped_values))
+            await s.commit()

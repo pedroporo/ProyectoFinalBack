@@ -16,12 +16,10 @@ services:
     networks:
       - sail
   appf:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    build: .
     container_name: 'Backend_fastapi'
     volumes:
-      - './:/app'
+      - ./:/app
     ports:
       - "8765:8765"
     networks:

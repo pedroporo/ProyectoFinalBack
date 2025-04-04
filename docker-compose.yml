@@ -25,7 +25,7 @@ services:
     ports:
       - "8765:8765"
     command:
-      - python ./websocket_server/main.py
+      - python ./websocket_server/server.py
     networks:
       - sail
     depends_on:

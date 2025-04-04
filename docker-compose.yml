@@ -21,7 +21,7 @@ services:
     container_name: 'backend_fastapi'
     restart: always
     volumes:
-      - ./:/app
+      - ./:/back
     ports:
       - "8765:8765"
     networks:

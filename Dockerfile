@@ -2,7 +2,7 @@
 FROM python:3.13.2-alpine3.21
 
 # Set working directory
-WORKDIR /back
+WORKDIR /websocket_server
 
 # Install system dependencies required for psycopg2
 RUN apk add --no-cache \
@@ -20,4 +20,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Expose port
 EXPOSE 8765
-CMD ["python3", "./websocket_server/server.py"]
+CMD ["python3", "server.py"]

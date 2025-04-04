@@ -22,7 +22,7 @@ services:
     restart: always
 
     volumes:
-      - ./:/back
+      - ./websocket_server:/websocket_server
     ports:
       - "8765:8765"
     networks:

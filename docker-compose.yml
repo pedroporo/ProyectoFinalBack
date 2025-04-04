@@ -15,7 +15,7 @@ services:
       - 'sail-mysql:/var/lib/mysql'
     networks:
       - sail
-  appf:
+  fastApi:
     build: .
     container_name: 'Backend_fastapi'
     volumes:

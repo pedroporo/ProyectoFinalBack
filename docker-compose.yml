@@ -20,8 +20,6 @@ services:
     build: .
     container_name: 'backend_fastapi'
     restart: always
-    command:
-      - 'python /db/session.py'
     volumes:
       - ./:/app
     ports:

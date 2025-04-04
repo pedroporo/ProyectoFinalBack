@@ -1,22 +1,38 @@
 version: '3'
 services:
   mysql:
-    image: mysql
+    image: 'mysql/mysql-server:8.0'
     ports:
-      - "3306:3306"
+      - '${FORWARD_DB_PORT:-3306}:3306'
+    environment:
+      MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
+      MYSQL_ROOT_HOST: '%'
+      MYSQL_DATABASE: '${DB_DATABASE}'
+      MYSQL_USER: '${DB_USERNAME}'
+      MYSQL_PASSWORD: '${DB_PASSWORD}'
+      MYSQL_ALLOW_EMPTY_PASSWORD: 1
     volumes:
-      - ./mysql/db:/docker-entrypoint-initdb.d
-      - ./mysql/conf.d:/etc/mysql/conf.d
-    env_file:
-      - ./.env
-    tty: true
+      - 'sail-mysql:/var/lib/mysql'
+      - './vendor/laravel/sail/database/mysql/create-testing-database.sh:/docker-entrypoint-initdb.d/10-create-testing-database.sh'
+    networks:
+      - sail
   appf:
     build:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - ./:/app
+      - './:/app'
     ports:
       - "8765:8765"
     command:
       - python main.py
+    networks:
+      - sail
+    depends_on:
+      - mysql
+networks:
+    sail:
+        driver: bridge
+volumes:
+    sail-mysql:
+        driver: local

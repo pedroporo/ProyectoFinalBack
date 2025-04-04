@@ -115,7 +115,9 @@ class Agent(Base):
         #db = await anext(get_db_session())
         #db=get_db_session()
 
-        result = await db.execute(select(Call).where(Call.agent_id == self.id and Call.status == "ready"))
+        #result = await db.execute(select(Call).where(Call.agent_id == self.id and Call.status == "ready"))
+
+        result = await db.execute(select(Call).where(sqlalchemy.and_(Call.agent_id == self.id , Call.status == "ready")))
         numeros = result.scalars().all()
         print(numeros)
 
@@ -142,7 +144,7 @@ class Agent(Base):
         self.client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
         outbound_twiml = (
             f'<?xml version="1.0" encoding="UTF-8"?>'
-            f'<Response><Connect><Stream url="wss://{DOMAIN}/media-stream" />  </Connect><Pause length="{self.silenceCloseCall}"/><Hangup/></Response>'
+            f'<Response><Connect><Stream url="wss://{DOMAIN}/media-stream" /> </Connect><Pause length="{self.silenceCloseCall}"/><Hangup/></Response>'
         )
         for phone_number_to_call in numeros:
 
@@ -174,6 +176,7 @@ class Agent(Base):
                 timeout=15,
 
             )
+
             call_id = call.sid
             phone_number_to_call.call_id=call_id
             phone_number_to_call.update()
@@ -198,12 +201,15 @@ class Agent(Base):
 
             print(f"Estado llamada {call_sid}: {llamada.status}")
 
+
             if llamada.status in ['completed', 'failed', 'busy', 'no-answer']:
+                #llamada.transcriptions.create(inbound_track_label="Cliente",outbound_track_label="AI")
                 #llamada.recordings.list()[0]..transcriptions.create()
-                #print(llamada.transcriptions)
+                print(llamada.transcriptions)
                 #await asyncio.sleep(30)
                 #print(llamada._proxy.__dict__)
                 #print(f"Llamada a dict: {llamada.__dict__}")
+                #print(llamada.recordings.list()[0])
                 call_db.call_id=llamada.sid
                 call_db.status=llamada.status
                 call_db.call_date=llamada.date_created

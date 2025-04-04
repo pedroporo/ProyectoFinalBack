@@ -57,7 +57,7 @@ async def make_call(phone_number_to_call: str):
 
     outbound_twiml = (
         f'<?xml version="1.0" encoding="UTF-8"?>'
-        f'<Response><Connect><Stream url="wss://{DOMAIN}/media-stream" /></Connect><Pause length="15"/><Hangup/></Response>'
+        f'<Response><Connect><Stream url="wss://{DOMAIN}/media-stream" /></Connect></Response>'
     )
 
     call = client.calls.create(
@@ -84,12 +84,15 @@ async def log_call_sid(call_sid):
 
 if __name__ == "__main__":
     #phone_number='+34678000893'
-    phone_number = '+34653072842'
+    #phone_number = '+34653072842'
     #for number in phone_numbers:
         #loop2=asyncio.get_event_loop()
         #loop2.run_until_complete(make_call(number))
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(make_call(phone_number))
-    server.run()
+    #loop = asyncio.get_event_loop()
+    #loop.run_until_complete(make_call(phone_number))
+    #server.run()
     #server.CALL_ID=call_id
+    llama=client.calls('CA649dded109aa88a5b90761a9d38611f6').fetch()
+    print(llama.recordings.list()[0])
+
 

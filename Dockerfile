@@ -2,7 +2,7 @@
 FROM python:3.13.2-alpine3.21
 
 # Set working directory
-WORKDIR /
+WORKDIR /back
 
 # Install system dependencies required for psycopg2
 RUN apk add --no-cache \

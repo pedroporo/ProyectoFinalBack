@@ -20,4 +20,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Expose port
 EXPOSE 8765
-CMD ["python3", "main.py"]
+CMD ["python3", "websocket_server/server.py"]

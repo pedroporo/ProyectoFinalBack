@@ -20,6 +20,7 @@ services:
     build: .
     container_name: 'backend_fastapi'
     restart: always
+
     volumes:
       - ./:/back
     ports:

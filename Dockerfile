@@ -14,9 +14,10 @@ RUN apk add --no-cache \
 
 # Copy project files
 COPY requirements.txt .
-
+COPY . .
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Expose port
 EXPOSE 8765
+CMD ["python3", "./websocket_server/server.py"]

@@ -18,7 +18,7 @@ ssh_tunnel= SSHTunnelForwarder(
     ssh_password=os.getenv('SSH_PASSWORD'),
     remote_bind_address=('localhost',3306)
 )
-ssh_tunnel.start()
+#ssh_tunnel.start()
 
 DATABASE_NAME=os.getenv('MYSQL_DATABASE')
 DB_USER=os.getenv('MYSQL_USER')
@@ -26,8 +26,8 @@ DB_PASS=os.getenv('MYSQL_PASSWORD')
 DB_HOST=os.getenv('DB_HOST')
 DB_PORT=os.getenv('DB_PORT')
 
-#DATABASE_URL=f"mysql+asyncmy://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DATABASE_NAME}"
-DATABASE_URL=f"mysql+asyncmy://{DB_USER}:{DB_PASS}@localhost:{ssh_tunnel.local_bind_port}/{DATABASE_NAME}"
+DATABASE_URL=f"mysql+asyncmy://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DATABASE_NAME}"
+#DATABASE_URL=f"mysql+asyncmy://{DB_USER}:{DB_PASS}@localhost:{ssh_tunnel.local_bind_port}/{DATABASE_NAME}"
 #Base = declarative_base()
 
 engine=create_async_engine(DATABASE_URL,echo=False)

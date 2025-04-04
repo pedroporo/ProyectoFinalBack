@@ -12,12 +12,12 @@ import asyncio
 load_dotenv()
 
 
-ssh_tunnel= SSHTunnelForwarder(
-    os.getenv('SERVER_IP'),
-    ssh_username=os.getenv('SSH_USERNAME'),
-    ssh_password=os.getenv('SSH_PASSWORD'),
-    remote_bind_address=('localhost',3306)
-)
+#ssh_tunnel= SSHTunnelForwarder(
+#    os.getenv('SERVER_IP'),
+#    ssh_username=os.getenv('SSH_USERNAME'),
+#    ssh_password=os.getenv('SSH_PASSWORD'),
+#    remote_bind_address=('localhost',3306)
+#)
 #ssh_tunnel.start()
 
 DATABASE_NAME=os.getenv('MYSQL_DATABASE')

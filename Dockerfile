@@ -13,8 +13,8 @@ RUN apk add --no-cache \
     python3-dev
 
 # Copy project files
-COPY requirements.txt .
-COPY . .
+#COPY requirements.txt .
+#COPY . .
 # Install dependencies
 #RUN pip install --no-cache-dir -r requirements.txt
 

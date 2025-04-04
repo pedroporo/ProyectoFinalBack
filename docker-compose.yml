@@ -22,7 +22,7 @@ services:
     restart: always
 
     volumes:
-      - ./:/back
+      - ./:/
     ports:
       - "8765:8765"
     networks:

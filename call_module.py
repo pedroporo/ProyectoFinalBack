@@ -22,8 +22,8 @@ TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
 PHONE_NUMBER_FROM = os.getenv('TWILIO_NUMBER')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 raw_domain = os.getenv('DOMAIN', '')
-DOMAIN = re.sub(r'(^\w+:|^)\/\/|\/+$', '', raw_domain) # Strip protocols and trailing slashes from DOMAIN
-call_id=None
+DOMAIN = re.sub(r'(^\w+:|^)\/\/|\/+$', '', raw_domain)  # Strip protocols and trailing slashes from DOMAIN
+call_id = None
 PORT = int(os.getenv('PORT', 8765))
 SYSTEM_MESSAGE = (
     "Eres un asistente de IA servicial y jovial, a quien le encanta charlar sobre cualquier tema que interese al usuario y siempre está dispuesto a ofrecerle información. Te encantan los chistes de papá, los chistes de búhos y los rickrolls, sutilmente. Mantén siempre una actitud positiva, pero incluye un chiste cuando sea necesario. "
@@ -43,9 +43,11 @@ if not (TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and PHONE_NUMBER_FROM and OPENA
 # Initialize Twilio client
 client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
+
 @app.get('/', response_class=JSONResponse)
 async def index_page():
     return {"message": "Twilio Media Stream Server is running!"}
+
 
 @app.websocket('/media-stream')
 async def handle_media_stream(websocket: WebSocket):
@@ -53,11 +55,11 @@ async def handle_media_stream(websocket: WebSocket):
     print("Client connected")
     await websocket.accept()
     async with websockets.connect(
-        'wss://api.openai.com/v1/realtime?model=gpt-4o-mini-realtime-preview',
-        additional_headers={
-            "Authorization": f"Bearer {OPENAI_API_KEY}",
-            "OpenAI-Beta": "realtime=v1"
-        }
+            'wss://api.openai.com/v1/realtime?model=gpt-4o-mini-realtime-preview',
+            additional_headers={
+                "Authorization": f"Bearer {OPENAI_API_KEY}",
+                "OpenAI-Beta": "realtime=v1"
+            }
     ) as openai_ws:
         await initialize_session(openai_ws)
         stream_sid = None
@@ -65,6 +67,7 @@ async def handle_media_stream(websocket: WebSocket):
         last_assistant_item = None
         mark_queue = []
         response_start_timestamp_twilio = None
+
         async def receive_from_twilio():
             """Receive audio data from Twilio and send it to the OpenAI Realtime API."""
             nonlocal stream_sid, latest_media_timestamp
@@ -88,7 +91,7 @@ async def handle_media_stream(websocket: WebSocket):
                     elif data['event'] == 'mark':
                         if mark_queue:
                             mark_queue.pop(0)
-                    elif data['event']=='stop':
+                    elif data['event'] == 'stop':
                         print("Client stopped the call")
                         await openai_ws.close()
 
@@ -97,8 +100,6 @@ async def handle_media_stream(websocket: WebSocket):
                 print("Client disconnected.")
                 if openai_ws.state.OPEN:
                     await openai_ws.close()
-
-
 
         async def send_to_twilio():
             """Receive events from the OpenAI Realtime API, send audio back to Twilio."""
@@ -182,7 +183,10 @@ async def handle_media_stream(websocket: WebSocket):
                 }
                 await connection.send_json(mark_event)
                 mark_queue.append('responsePart')
+
         await asyncio.gather(receive_from_twilio(), send_to_twilio())
+
+
 async def send_initial_conversation_item(openai_ws):
     """Send initial conversation so AI talks first."""
     initial_conversation_item = {
@@ -205,6 +209,7 @@ async def send_initial_conversation_item(openai_ws):
     await openai_ws.send(json.dumps(initial_conversation_item))
     await openai_ws.send(json.dumps({"type": "response.create"}))
 
+
 async def initialize_session(openai_ws):
     """Control initial session with OpenAI."""
     session_update = {
@@ -224,13 +229,15 @@ async def initialize_session(openai_ws):
 
     # Have the AI speak first
     await send_initial_conversation_item(openai_ws)
+
+
 async def check_number_allowed(to):
     """Check if a number is allowed to be called."""
     try:
         # Saltarse el filtro de llamaddas
-        #OVERRIDE_NUMBERS = ['+34653072842','+34678000893','+34642447846']
-        #if to in OVERRIDE_NUMBERS:
-            #return True
+        # OVERRIDE_NUMBERS = ['+34653072842','+34678000893','+34642447846']
+        # if to in OVERRIDE_NUMBERS:
+        # return True
         return True
         incoming_numbers = client.incoming_phone_numbers.list(phone_number=to)
         if incoming_numbers:
@@ -244,6 +251,8 @@ async def check_number_allowed(to):
     except Exception as e:
         print(f"Error checking phone number: {e}")
         return False
+
+
 async def make_call(phone_number_to_call: str):
     """Make an outbound call."""
     if not phone_number_to_call:
@@ -251,7 +260,8 @@ async def make_call(phone_number_to_call: str):
 
     is_allowed = await check_number_allowed(phone_number_to_call)
     if not is_allowed:
-        raise ValueError(f"The number {phone_number_to_call} is not recognized as a valid outgoing number or caller ID.")
+        raise ValueError(
+            f"The number {phone_number_to_call} is not recognized as a valid outgoing number or caller ID.")
 
     # Ensure compliance with applicable laws and regulations
     # All of the rules of TCPA apply even if a call is made by AI.
@@ -273,13 +283,12 @@ async def make_call(phone_number_to_call: str):
         timeout=15,
         machine_detection_silence_timeout=15,
 
-        #status_callback=f'http://{DOMAIN}/events',
-        #status_callback_event=["initiated", "answered","completed"],
-        #status_callback_method=["POST"]
+        # status_callback=f'http://{DOMAIN}/events',
+        # status_callback_event=["initiated", "answered","completed"],
+        # status_callback_method=["POST"]
     )
 
-
-    call_id=call.sid
+    call_id = call.sid
     await log_call_sid(call.sid)
 
 
@@ -290,21 +299,21 @@ async def log_call_sid(call_sid):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the Twilio AI voice assistant server.")
-    #parser.add_argument('--call', required=True, help="The phone number to call, e.g., '--call=+18005551212'")
-    #args = parser.parse_args()
-    #print(args)
-    #phone_number = args.call
-    phone_number='+34653072842'
-    #phone_numbers = ['+34653072842','+34619523174']
-    #phone_numbers = ['+34626545458', '+34646429175']
+    # parser.add_argument('--call', required=True, help="The phone number to call, e.g., '--call=+18005551212'")
+    # args = parser.parse_args()
+    # print(args)
+    # phone_number = args.call
+    phone_number = '+34651105446'
+    # phone_numbers = ['+34653072842','+34619523174']
+    # phone_numbers = ['+34626545458', '+34646429175']
     print(
         'Our recommendation is to always disclose the use of AI for outbound or inbound calls.\n'
         'Reminder: All of the rules of TCPA apply even if a call is made by AI.\n'
         'Check with your counsel for legal and compliance advice.'
     )
-    #for number in phone_numbers:
-        #loop2=asyncio.get_event_loop()
-        #loop2.run_until_complete(make_call(number))
+    # for number in phone_numbers:
+    # loop2=asyncio.get_event_loop()
+    # loop2.run_until_complete(make_call(number))
     loop = asyncio.get_event_loop()
     loop.run_until_complete(make_call(phone_number))
 

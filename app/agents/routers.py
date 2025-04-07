@@ -36,10 +36,10 @@ async def create_agent(agent: AgentCreate, db: AsyncSession = Depends(get_db_ses
 @router.put("/agents/{agent_id}", response_model=AgentResponse)
 async def update_agent(agent_id: int, agent: AgentCreate, db: AsyncSession = Depends(get_db_session)):
     try:
-        print(f"id:{agent_id}, Type: {agent_id.__class__}")
-        print(f"Agente :{agent}, Type: {agent.__class__}")
+        # print(f"id:{agent_id}, Type: {agent_id.__class__}")
+        # print(f"Agente :{agent}, Type: {agent.__class__}")
         new_agent = Agent(id=agent_id, **agent.dict())
-        print(f"Agente 2: {new_agent}, Type: {new_agent.__class__}")
+        # print(f"Agente 2: {new_agent}, Type: {new_agent.__class__}")
         await new_agent.update()
 
         # return new_agent.to_dict()
@@ -62,17 +62,17 @@ async def get_agent(agent_id: int, db: AsyncSession = Depends(get_db_session)):
 async def get_agent(agent_id: int, db: AsyncSession = Depends(get_db_session)):
     result = await db.execute(select(Agent).where(Agent.id == agent_id))
     agent = result.scalar()
-
+    agent.delete()
     if not agent:
         raise HTTPException(status_code=404, detail="Agente no encontrado")
-    return JSONResponse(content=agent.to_dict(), status_code=200)
+    return JSONResponse(content={"message": "El agente a sido eliminado"}, status_code=200)
 
 
 @router.get("/agents", response_model=None)
 async def get_agent(db: AsyncSession = Depends(get_db_session)):
     result = await db.execute(select(Agent))
     agents = result.scalars().all()
-    print({'agents': [agent.to_dict() for agent in agents]})
+    # print({'agents': [agent.to_dict() for agent in agents]})
     if not agents:
         raise HTTPException(status_code=404, detail="Agente no encontrado")
     return JSONResponse(content={'agents': [agent.to_dict() for agent in agents]}, status_code=200)

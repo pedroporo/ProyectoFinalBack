@@ -9,7 +9,9 @@ from sqlalchemy.future import select
 import  sqlalchemy
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from sqlalchemy.orm.attributes import InstrumentedAttribute
+from sqlalchemy.future import select
+from sqlalchemy import update,delete
 #from main import call_id
 from twilio.rest import Client
 from dotenv import load_dotenv
@@ -59,7 +61,31 @@ class Agent(Base):
     silenceCloseCall=Column(sqlalchemy.Integer,default=30)
     callMaxDuration=Column(sqlalchemy.Integer)
     #calls= relationship("Call", back_populates="agent", cascade="all, delete-orphan")
+    async def update(self):
+        #s = get_db_session()
+        async with get_db_session() as s:
+            mapped_values = {}
+            for item in Agent.__dict__.items():
+                field_name = item[0]
+                field_type = item[1]
+                is_column = isinstance(field_type, InstrumentedAttribute)
+                if is_column:
+                    mapped_values[field_name] = getattr(self, field_name)
 
+        #s.query(Call).filter(Call.call_id == self.call_id).update(mapped_values)
+            await s.execute(update(Agent).where(Agent.id == self.id).values(**mapped_values))
+            await s.commit()
+    async def delete(self):
+        #s = get_db_session()
+        async with get_db_session() as s:
+            await s.execute(delete(Agent).where(Agent.id == self.id))
+            await s.commit()
+    async def create(self):
+        #s = get_db_session()
+        async with get_db_session() as s:
+            await s.add(self)
+            await s.commit()
+            await s.refresh(self)
     def to_dict(self):
         """Convierte la instancia del modelo a un diccionario serializable"""
         return {
@@ -76,9 +102,7 @@ class Agent(Base):
         }
 
     def toJSON(self):
-        """Versión mejorada del método JSON"""
         return json.dumps(self.to_dict(), indent=4)
-
 
     if not (TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and PHONE_NUMBER_FROM and OPENAI_API_KEY):
         raise ValueError('Missing Twilio and/or OpenAI environment variables. Please set them in the .env file.')

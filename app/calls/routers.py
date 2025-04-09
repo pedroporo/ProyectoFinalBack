@@ -14,32 +14,12 @@ router = APIRouter()
 @router.post("/calls/", response_model=CallResponse)
 async def create_call(call: CallCreate, db: AsyncSession = Depends(get_db_session)):
     try:
-        new_agent = Call(**call.dict())
-
-        db.add(new_agent)
-        await db.commit()
-        await db.refresh(new_agent)
-        return new_agent.to_dict()
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@router.get("/calls/{call_id}", response_model=CallResponse)
-async def get_agent(call_id: int, db: AsyncSession = Depends(get_db_session)):
-    result = await db.execute(select(Call).where(Call.id == call_id))
-    agent = result.scalar()
-    if not agent:
-        raise HTTPException(status_code=404, detail="Llamada no encontrado")
-    return JSONResponse(content=agent.to_dict(), status_code=200)
-
-
-@router.put("/calls/{call_id}", response_model=CallResponse)
-async def update_agent(call_id: int, agent: CallCreate, db: AsyncSession = Depends(get_db_session)):
-    try:
-        new_call = Call(id=call_id, **agent.dict())
-        await new_call.update()
-        return JSONResponse(content={"message": "La llamada a sido actualizada"}, status_code=200)
+        new_call = Call(**call.dict())
+        await new_call.create()
+        # db.add(new_agent)
+        # await db.commit()
+        # await db.refresh(new_agent)
+        return new_call.to_dict()
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
@@ -50,12 +30,23 @@ async def get_call(call_id: int, db: AsyncSession = Depends(get_db_session)):
     result = await db.execute(select(Call).where(Call.id == call_id))
     call = result.scalar()
     if not call:
-        raise HTTPException(status_code=404, detail="LLamada no encontrado")
+        raise HTTPException(status_code=404, detail="Llamada no encontrado")
     return JSONResponse(content=call.to_dict(), status_code=200)
 
 
+@router.put("/calls/{call_id}", response_model=CallResponse)
+async def update_call(call_id: int, agent: CallCreate, db: AsyncSession = Depends(get_db_session)):
+    try:
+        new_call = Call(id=call_id, **agent.dict())
+        await new_call.update()
+        return JSONResponse(content={"message": "La llamada a sido actualizada"}, status_code=200)
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.delete("/calls/{call_id}", response_model=CallResponse)
-async def get_agent(call_id: int, db: AsyncSession = Depends(get_db_session)):
+async def del_call(call_id: int, db: AsyncSession = Depends(get_db_session)):
     result = await db.execute(select(Call).where(Call.id == call_id))
     call = result.scalar()
     call.delete()
@@ -65,7 +56,7 @@ async def get_agent(call_id: int, db: AsyncSession = Depends(get_db_session)):
 
 
 @router.get("/calls/{agent_id}", response_model=None)
-async def get_agent(agent_id: int, db: AsyncSession = Depends(get_db_session)):
+async def get_agents_call(agent_id: int, db: AsyncSession = Depends(get_db_session)):
     result = await db.execute(select(Call).where(Call.agent_id == agent_id))
     llamadas = result.scalars().all()
     # print({'agents': [agent.to_dict() for agent in agents]})

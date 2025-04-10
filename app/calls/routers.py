@@ -8,10 +8,10 @@ from .schemas import CallCreate, CallResponse
 from .models import Call
 from app.db.session import get_db_session
 
-router = APIRouter()
+router = APIRouter(prefix="/calls", tags=["Calls"])
 
 
-@router.post("/calls/", response_model=CallResponse)
+@router.post("/", response_model=CallResponse, summary="Create call")
 async def create_call(call: CallCreate, db: AsyncSession = Depends(get_db_session)):
     try:
         new_call = Call(**call.dict())
@@ -25,19 +25,20 @@ async def create_call(call: CallCreate, db: AsyncSession = Depends(get_db_sessio
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/calls/{call_id}", response_model=CallResponse)
+@router.get("/{call_id}", response_model=CallResponse, summary="Get call")
 async def get_call(call_id: int, db: AsyncSession = Depends(get_db_session)):
-    result = await db.execute(select(Call).where(Call.id == call_id))
-    call = result.scalar()
+    # result = await db.execute(select(Call).where(Call.id == call_id))
+    # call = result.scalar()
+    call = await Call(id=call_id).get()
     if not call:
         raise HTTPException(status_code=404, detail="Llamada no encontrado")
     return JSONResponse(content=call.to_dict(), status_code=200)
 
 
-@router.put("/calls/{call_id}", response_model=CallResponse)
-async def update_call(call_id: int, agent: CallCreate, db: AsyncSession = Depends(get_db_session)):
+@router.put("/{call_id}", response_model=CallResponse, summary="Update call")
+async def update_call(call_id: int, call: CallCreate, db: AsyncSession = Depends(get_db_session)):
     try:
-        new_call = Call(id=call_id, **agent.dict())
+        new_call = Call(id=call_id, **call.dict())
         await new_call.update()
         return JSONResponse(content={"message": "La llamada a sido actualizada"}, status_code=200)
     except Exception as e:
@@ -45,17 +46,17 @@ async def update_call(call_id: int, agent: CallCreate, db: AsyncSession = Depend
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete("/calls/{call_id}", response_model=CallResponse)
+@router.delete("/{call_id}", response_model=CallResponse, summary="Delete call")
 async def del_call(call_id: int, db: AsyncSession = Depends(get_db_session)):
     result = await db.execute(select(Call).where(Call.id == call_id))
     call = result.scalar()
-    call.delete()
+    await call.delete()
     if not call:
         raise HTTPException(status_code=404, detail="Llamada no encontrado")
     return JSONResponse(content={"message": "La llamada a sido eliminada"}, status_code=200)
 
 
-@router.get("/calls/{agent_id}", response_model=None)
+@router.get("/{agent_id}", response_model=None, tags=["Agents"], summary="Get calls from agent")
 async def get_agents_call(agent_id: int, db: AsyncSession = Depends(get_db_session)):
     result = await db.execute(select(Call).where(Call.agent_id == agent_id))
     llamadas = result.scalars().all()

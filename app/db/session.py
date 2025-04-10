@@ -37,14 +37,16 @@ async def init_models():
     async with engine.begin() as conn:
         from app.agents.models import Base
         from app.calls.models import Base as call_base
+        from app.users.models import Base as user_base
         await conn.run_sync(call_base.metadata.drop_all)
         await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(user_base.metadata.drop_all)
 
+        await conn.run_sync(user_base.metadata.create_all)
         await conn.run_sync(Base.metadata.create_all)
         await conn.run_sync(call_base.metadata.create_all)
 
 
-@asynccontextmanager
 async def get_db_session() -> AsyncSession:
     async with async_session_factory() as session:
         try:
@@ -53,8 +55,21 @@ async def get_db_session() -> AsyncSession:
         except SQLAlchemyError:
             await session.rollback()
             raise
-        # finally:
-        #    await session.close()
+        finally:
+            await session.close()
+
+
+@asynccontextmanager
+async def get_db_session_class() -> AsyncSession:
+    async with async_session_factory() as session:
+        try:
+            yield session
+            await session.commit()
+        except SQLAlchemyError:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
 
 
 if __name__ == "__main__":

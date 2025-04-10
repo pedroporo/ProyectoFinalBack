@@ -7,6 +7,8 @@ from fastapi.websockets import WebSocketDisconnect
 import websockets
 from dotenv import load_dotenv
 from twilio.rest import Client
+from .functionHandeler import functions
+
 load_dotenv()
 TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
@@ -23,18 +25,18 @@ SHOW_TIMING_MATH = False
 
 
 class SessionManager:
-    def __init__(self,VOICE=None,SYSTEM_MESSAGE=None,CREATIVITY=0.6):
+    def __init__(self, VOICE=None, SYSTEM_MESSAGE=None, CREATIVITY=0.6):
         self.stream_sid = None
         self.latest_media_timestamp = 0
         self.last_assistant_item = None
         self.mark_queue = []
         self.response_start_timestamp_twilio = None
-        self.VOICE=VOICE
-        self.SYSTEM_MESSAGE=SYSTEM_MESSAGE
-        self.CREATIVITY=CREATIVITY
-        self.CALL_ID=None
+        self.VOICE = VOICE
+        self.SYSTEM_MESSAGE = SYSTEM_MESSAGE
+        self.CREATIVITY = CREATIVITY
+        self.CALL_ID = None
         self.client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-        #print(f"Voice: {self.VOICE} Instructions: {self.SYSTEM_MESSAGE} Creativity: {self.CREATIVITY}")
+        # print(f"Voice: {self.VOICE} Instructions: {self.SYSTEM_MESSAGE} Creativity: {self.CREATIVITY}")
 
     async def initialize_session(self, openai_ws):
         """Inicializa la sesión con OpenAI."""
@@ -48,12 +50,36 @@ class SessionManager:
                 "instructions": self.SYSTEM_MESSAGE,
                 "modalities": ["text", "audio"],
                 "temperature": 1,
+                "tools": functions
             }
         }
         print('Enviando actualización de sesión:', json.dumps(session_update))
         await openai_ws.send(json.dumps(session_update))
         # La IA habla primero (comentalo si no quieres que eso pase)
         await self.send_initial_conversation_item(openai_ws)
+
+    async def handle_function_call(item: dict):
+        print("Handling function call:", item)
+        fn_def = next((f for f in functions if f['schema']['name'] == item['name']), None)
+        if not fn_def:
+            raise ValueError(f"No handler found for function: {item['name']}")
+
+        try:
+            args = json.loads(item['arguments'])
+        except json.JSONDecodeError:
+            return json.dumps({
+                "error": "Invalid JSON arguments for function call."
+            })
+
+        try:
+            print("Calling function:", fn_def['schema']['name'], args)
+            result = await fn_def['handler'](args)
+            return result
+        except Exception as err:
+            print("Error running function:", err)
+            return json.dumps({
+                "error": f"Error running function {item['name']}: {str(err)}"
+            })
 
     async def send_initial_conversation_item(self, openai_ws):
         """Envía el mensaje inicial para que la IA hable primero."""
@@ -159,14 +185,30 @@ class SessionManager:
                         if response.get('item_id'):
                             self.last_assistant_item = response['item_id']
 
-                        await self.send_mark(websocket,openai_ws)
+                        await self.send_mark(websocket, openai_ws)
                     except Exception as e:
                         print(f"Error processing audio data: {e}")
+                if response['type'] == 'response.function_call':
+                    function_name = response['function_call']['name']
+                    args = json.loads(response['function_call']['arguments'])
+
+                    if function_name == 'check_google_calendar':
+                        results = await self.check_google_calendar(args['time_min'], args['time_max'])
+                    elif function_name == 'create_google_event':
+                        results = await self.create_google_event(args['summary'], args['start'], args['end'],
+                                                                 args['email'])
+
+                    # Envía los resultados de vuelta a OpenAI
+                    await openai_ws.send(json.dumps({
+                        "type": "function_result",
+                        "function_call_id": response['function_call_id'],
+                        "content": json.dumps(results)
+                    }))
                 if response['type'] == 'input_audio_buffer.speech_started':
                     print("Speech started detected")
                     if self.last_assistant_item:
                         print(f"Interrupting response with id: {self.last_assistant_item}")
-                        await self.handle_speech_started_event(websocket,openai_ws)
+                        await self.handle_speech_started_event(websocket, openai_ws)
 
         except Exception as e:
             print(f"Error al enviar datos a Twilio: {e}")
@@ -201,7 +243,7 @@ class SessionManager:
             self.last_assistant_item = None
             self.response_start_timestamp_twilio = None
 
-    async def send_mark(self,websocket,openai_ws):
+    async def send_mark(self, websocket, openai_ws):
         if self.stream_sid:
             mark_event = {
                 "event": "mark",
@@ -210,4 +252,4 @@ class SessionManager:
             }
             await websocket.send_json(mark_event)
             self.mark_queue.append('responsePart')
-        #await asyncio.gather(self.receive_from_twilio(websocket,openai_ws), self.send_to_twilio(websocket,openai_ws))
+        # await asyncio.gather(self.receive_from_twilio(websocket,openai_ws), self.send_to_twilio(websocket,openai_ws))

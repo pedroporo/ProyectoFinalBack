@@ -7,19 +7,17 @@ from sqlalchemy.future import select
 from fastapi.responses import JSONResponse
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 from sqlalchemy import update
-from sqlalchemy.ext.asyncio import AsyncSession
 # from app.agents.models import Agent
 # from app.agents.schemas import AgentCreate,AgentResponse
 from .schemas import AgentCreate, AgentResponse
 from .models import Agent
 from app.db.session import get_db_session
 
-router = APIRouter()
+router = APIRouter(prefix="/agents", tags=["Agents"])
 
 
-@router.post("/agents/", response_model=AgentResponse)
+@router.post("/", response_model=AgentResponse)
 async def create_agent(agent: AgentCreate, db: AsyncSession = Depends(get_db_session)):
     try:
         new_agent = Agent(**agent.dict())
@@ -29,11 +27,11 @@ async def create_agent(agent: AgentCreate, db: AsyncSession = Depends(get_db_ses
         # await db.refresh(new_agent)
         return new_agent.to_dict()
     except Exception as e:
-        await db.rollback()
+        # await db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.put("/agents/{agent_id}", response_model=AgentResponse)
+@router.put("/{agent_id}", response_model=AgentResponse)
 async def update_agent(agent_id: int, agent: AgentCreate, db: AsyncSession = Depends(get_db_session)):
     try:
         # print(f"id:{agent_id}, Type: {agent_id.__class__}")
@@ -49,7 +47,7 @@ async def update_agent(agent_id: int, agent: AgentCreate, db: AsyncSession = Dep
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/agents/{agent_id}", response_model=AgentResponse)
+@router.get("/{agent_id}", response_model=AgentResponse)
 async def get_agent(agent_id: int, db: AsyncSession = Depends(get_db_session)):
     result = await db.execute(select(Agent).where(Agent.id == agent_id))
     agent = result.scalar()
@@ -58,17 +56,19 @@ async def get_agent(agent_id: int, db: AsyncSession = Depends(get_db_session)):
     return JSONResponse(content=agent.to_dict(), status_code=200)
 
 
-@router.delete("/agents/{agent_id}", response_model=AgentResponse)
+@router.delete("/{agent_id}", response_model=None, description="Eliminar un agente", summary="Delete agent")
 async def get_agent(agent_id: int, db: AsyncSession = Depends(get_db_session)):
-    result = await db.execute(select(Agent).where(Agent.id == agent_id))
-    agent = result.scalar()
-    agent.delete()
+    # result = await db.execute(select(Agent).where(Agent.id == agent_id))
+    # agent = result.scalar()
+    agent = await Agent(id=agent_id).get()
+    await agent.delete()
+    # print(f'Agente despues del delete: {agent.to_dict()}')
     if not agent:
         raise HTTPException(status_code=404, detail="Agente no encontrado")
     return JSONResponse(content={"message": "El agente a sido eliminado"}, status_code=200)
 
 
-@router.get("/agents", response_model=None)
+@router.get("/", response_model=None)
 async def get_agent(db: AsyncSession = Depends(get_db_session)):
     result = await db.execute(select(Agent))
     agents = result.scalars().all()
@@ -78,10 +78,9 @@ async def get_agent(db: AsyncSession = Depends(get_db_session)):
     return JSONResponse(content={'agents': [agent.to_dict() for agent in agents]}, status_code=200)
 
 
-@router.get("/agents/{agent_id}/makeCalls", response_model=None)
+@router.get("/{agent_id}/makeCalls", response_model=None)
 async def agent_make_calls(agent_id: int, db: AsyncSession = Depends(get_db_session)):
-    result = await db.execute(select(Agent).where(Agent.id == agent_id))
-    agent = result.scalar()
+    agent = await Agent(id=agent_id).get()
     await agent.make_call(db)
 
     if not agent:

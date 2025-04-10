@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import update, delete
 
-from app.db.session import get_db_session
+from app.db.session import get_db_session_class
 
 # from app.db.session import Base
 load_dotenv()
@@ -66,7 +66,7 @@ class Call(Base):
 
     async def update(self):
 
-        async with get_db_session() as s:
+        async with get_db_session_class() as s:
             mapped_values = {}
             for item in Call.__dict__.items():
                 field_name = item[0]
@@ -78,12 +78,17 @@ class Call(Base):
             await s.commit()
 
     async def delete(self):
-        async with get_db_session() as s:
+        async with get_db_session_class() as s:
             await s.execute(delete(Call).where(Call.id == self.id))
             await s.commit()
 
     async def create(self):
-        async with get_db_session() as s:
-            await s.add(self)
+        async with get_db_session_class() as s:
+            s.add(self)
             await s.commit()
             await s.refresh(self)
+
+    async def get(self):
+        async with get_db_session_class() as s:
+            result = await s.execute(select(Call).where(Call.id == self.id))
+            return result.scalar()

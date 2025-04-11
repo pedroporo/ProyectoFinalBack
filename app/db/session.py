@@ -38,11 +38,14 @@ async def init_models():
         from app.agents.models import Base
         from app.calls.models import Base as call_base
         from app.users.models import Base as user_base
+        from app.users.models import Cred_Base as cred_base
         await conn.run_sync(call_base.metadata.drop_all)
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(user_base.metadata.drop_all)
+        await conn.run_sync(cred_base.metadata.drop_all)
 
         await conn.run_sync(user_base.metadata.create_all)
+        await conn.run_sync(cred_base.metadata.create_all)
         await conn.run_sync(Base.metadata.create_all)
         await conn.run_sync(call_base.metadata.create_all)
 

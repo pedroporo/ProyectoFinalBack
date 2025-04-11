@@ -9,6 +9,10 @@ from dotenv import load_dotenv
 from twilio.rest import Client
 from .functionHandeler import functions
 
+# import logging
+
+# logging.basicConfig(level=logging.DEBUG)
+
 load_dotenv()
 TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
@@ -19,13 +23,13 @@ if not (OPENAI_API_KEY):
 LOG_EVENT_TYPES = [
     'error', 'response.content.done', 'rate_limits.updated', 'response.done',
     'input_audio_buffer.committed', 'input_audio_buffer.speech_stopped',
-    'input_audio_buffer.speech_started', 'session.created'
+    'input_audio_buffer.speech_started', 'session.created', 'response.function_call'
 ]
 SHOW_TIMING_MATH = False
 
 
 class SessionManager:
-    def __init__(self, VOICE=None, SYSTEM_MESSAGE=None, CREATIVITY=0.6):
+    def __init__(self, VOICE=None, SYSTEM_MESSAGE=None, GOOGLE_CREDS=None, CREATIVITY=0.6):
         self.stream_sid = None
         self.latest_media_timestamp = 0
         self.last_assistant_item = None
@@ -35,6 +39,7 @@ class SessionManager:
         self.SYSTEM_MESSAGE = SYSTEM_MESSAGE
         self.CREATIVITY = CREATIVITY
         self.CALL_ID = None
+        self.GOOGLE_CREDS = GOOGLE_CREDS
         self.client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
         # print(f"Voice: {self.VOICE} Instructions: {self.SYSTEM_MESSAGE} Creativity: {self.CREATIVITY}")
 
@@ -50,7 +55,7 @@ class SessionManager:
                 "instructions": self.SYSTEM_MESSAGE,
                 "modalities": ["text", "audio"],
                 "temperature": 1,
-                "tools": functions
+                "tools": functions.to_dict(),
             }
         }
         print('Enviando actualización de sesión:', json.dumps(session_update))
@@ -58,7 +63,7 @@ class SessionManager:
         # La IA habla primero (comentalo si no quieres que eso pase)
         await self.send_initial_conversation_item(openai_ws)
 
-    async def handle_function_call(item: dict):
+    async def handle_function_call(self, item: dict):
         print("Handling function call:", item)
         fn_def = next((f for f in functions if f['schema']['name'] == item['name']), None)
         if not fn_def:
@@ -73,7 +78,7 @@ class SessionManager:
 
         try:
             print("Calling function:", fn_def['schema']['name'], args)
-            result = await fn_def['handler'](args)
+            result = await fn_def['handler'](args, self.GOOGLE_CREDS)
             return result
         except Exception as err:
             print("Error running function:", err)
@@ -189,18 +194,20 @@ class SessionManager:
                     except Exception as e:
                         print(f"Error processing audio data: {e}")
                 if response['type'] == 'response.function_call':
-                    function_name = response['function_call']['name']
-                    args = json.loads(response['function_call']['arguments'])
-
-                    if function_name == 'check_google_calendar':
-                        results = await self.check_google_calendar(args['time_min'], args['time_max'])
-                    elif function_name == 'create_google_event':
-                        results = await self.create_google_event(args['summary'], args['start'], args['end'],
-                                                                 args['email'])
+                    print(f'Intentando llamar funciones', response)
+                    results = self.handle_function_call(response)
+                    # function_name = response['function_call']['name']
+                    # args = json.loads(response['function_call']['arguments'])
+                    #
+                    # if function_name == 'check_google_calendar':
+                    #     results = await self.check_google_calendar(args['time_min'], args['time_max'])
+                    # elif function_name == 'create_google_event':
+                    #     results = await self.create_google_event(args['summary'], args['start'], args['end'],
+                    #                                              args['email'])
 
                     # Envía los resultados de vuelta a OpenAI
                     await openai_ws.send(json.dumps({
-                        "type": "function_result",
+                        "type": "function_response",
                         "function_call_id": response['function_call_id'],
                         "content": json.dumps(results)
                     }))

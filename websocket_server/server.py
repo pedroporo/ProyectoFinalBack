@@ -17,7 +17,7 @@ import re
 from app.agents.routers import router as agents_router
 from app.calls.routers import router as calls_router
 from app.users.routers import router as users_router
-from app.users.auth import router as auth_router
+# from app.users.auth import router as auth_router
 from functionHandeler import functions
 
 load_dotenv()
@@ -65,7 +65,7 @@ class Server:
         self.CALL_ID = None
 
         @self.app.get('/', response_class=JSONResponse)
-        async def index_page():
+        async def index_page(request: Request):
             return {"message": "Twilio Media Stream Server está corriendo!"}
 
         @self.app.websocket('/media-stream', )
@@ -82,7 +82,7 @@ class Server:
             # print(f"Session: {agent}")
             # self.session_manager=SessionManager(VOICE=agent.voice,SYSTEM_MESSAGE=agent.instrucciones,CREATIVITY=agent.creatividadVoz)
             self.session_manager = SessionManager(VOICE=agent['voice'], SYSTEM_MESSAGE=agent['instrucciones'],
-                                                  CREATIVITY=agent['creatividadVoz'])
+                                                  CREATIVITY=agent['creatividadVoz'], GOOGLE_CREDS=agent['googleCreds'])
             return {"message": "La sesion a sido actualizada"}
 
         @self.app.middleware("http")

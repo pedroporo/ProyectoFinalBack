@@ -1,6 +1,6 @@
 import json
 
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, status, HTTPException, Request, Cookie
 from fastapi.encoders import jsonable_encoder
 from fastapi.security import HTTPBearer
 from sqlalchemy.future import select
@@ -13,6 +13,8 @@ from sqlalchemy import update
 from .schemas import AgentCreate, AgentResponse
 from .models import Agent
 from app.db.session import get_db_session
+from app.users.models import GoogleCredential
+from app.users.routers import get_google_creds
 
 router = APIRouter(prefix="/agents", tags=["Agents"])
 
@@ -79,8 +81,10 @@ async def get_agent(db: AsyncSession = Depends(get_db_session)):
 
 
 @router.get("/{agent_id}/makeCalls", response_model=None)
-async def agent_make_calls(agent_id: int, db: AsyncSession = Depends(get_db_session)):
+async def agent_make_calls(request: Request, agent_id: int, db: AsyncSession = Depends(get_db_session),
+                           creds: GoogleCredential = Depends(get_google_creds)):
     agent = await Agent(id=agent_id).get()
+    agent.googleCreds = creds.toJSON()
     await agent.make_call(db)
 
     if not agent:

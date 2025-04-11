@@ -1,14 +1,37 @@
 import array
-
+from datetime import datetime
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, status, HTTPException, FastAPI, Request, Cookie
 import requests
 import json
 from schemas import FunctionHandler, FunctionSchema
 from typing import Dict, Any, Callable, Optional, List
+from websocket_server.Services.Google import get_calendar_service
+from app.users.models import GoogleCredential
+from app.users.routers import get_google_creds
+
+# import logging
+
+# logging.basicConfig(level=logging.DEBUG)
+scopes = ['https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/calendar.readonly',
+          'https://www.googleapis.com/auth/calendar.events',
+          'https://www.googleapis.com/auth/calendar.events.readonly']
+
+google_creds = None
 
 
 class FunctionHandlerArray:
     def __init__(self):
         self._array: List[FunctionHandler] = []
+
+    def to_dict(self):
+        """Convierte la instancia del modelo a un diccionario serializable"""
+        print(jsonable_encoder([f.schema.to_dict() for f in self._array]))
+        return jsonable_encoder([f.schema.to_dict() for f in self._array])
+
+    def toJSON(self):
+        return json.dumps(self.to_dict(), indent=4)
 
     def append(self, item: Dict[str, Any]):
         # Validar que el objeto tenga las claves necesarias
@@ -68,33 +91,60 @@ functions.append({
                 "time_max": {"type": "string", "format": "date-time"},
             },
             "required": ["time_min", "time_max"],
+            "additionalProperties": False,
         },
+        "strict": True
     },
-    "handler": lambda args: check_google_calendar(args)
+    "handler": lambda args, creds: check_google_calendar(args, creds)
+})
+functions.append({
+    "schema": {
+        "name": "create_google_event",
+        "type": "function",
+        "description": "Crea un evento en el calendario",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "summary": {"type": "string"},
+                "start": {"type": "string", "format": "date-time"},
+                "end": {"type": "string", "format": "date-time"},
+                "email": {"type": "string"}
+            },
+            "required": ["summary", "start", "end", "email"],
+            "additionalProperties": False,
+        },
+        "strict": True
+    },
+    "handler": lambda args, creds: create_google_event(args, creds)
 })
 
 
-async def check_google_calendar(args, time_min, time_max):
-    events_result = self.google_service.events().list(
+async def check_google_calendar(args, creds):
+    google_service = await get_calendar_service(creds.access_token)
+    events_result = google_service.events().list(
         calendarId='primary',
         timeMin=args['time_min'],
-        timeMax=time_max,
+        timeMax=args['time_max'],
         singleEvents=True
     ).execute()
     return events_result.get('items', [])
 
 
-async def create_google_event(self, summary, start, end, email):
-    event = {
-        'summary': summary,
-        'start': {'dateTime': start},
-        'end': {'dateTime': end},
-        'attendees': [{'email': email}]
-    }
-    return self.google_service.events().insert(
-        calendarId='primary',
-        body=event
-    ).execute()
+async def create_google_event(args, creds):
+    google_service = await get_calendar_service(creds.access_token)
+    try:
+        event = {
+            'summary': args['summary'],
+            'start': {'dateTime': datetime.fromisoformat(args['start'])},
+            'end': {'dateTime': datetime.fromisoformat(args['end'])},
+            'attendees': [{'email': args['email']}]
+        }
+        return google_service.events().insert(
+            calendarId='primary',
+            body=event
+        ).execute()
+    except Exception as e:
+        return {"error": f"Formato de fecha inválido, usar ISO 8601: {e}"}
 
 
 async def get_weather(args):

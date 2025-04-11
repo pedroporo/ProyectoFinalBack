@@ -6,6 +6,12 @@ from google_auth_oauthlib.flow import Flow, InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+
+
+def get_calendar_service(access_token: str):
+    creds = Credentials(token=access_token)
+    return build('calendar', 'v3', credentials=creds)
 
 
 def Create_Service(client_secret_file, api_name, api_version, *scopes, prefix=''):
@@ -104,9 +110,28 @@ class GoogleSheetsHelper:
 
 
 class GoogleCalendarHelper:
-    scopes = ['https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/calendar.readonly',
-              'https://www.googleapis.com/auth/calendar.events',
-              'https://www.googleapis.com/auth/calendar.events.readonly']
+
+    def __init__(self, user_token=None):
+        self.service = self._authenticate()
+        self.token = user_token
+        self.scopes = ['https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/calendar.readonly',
+                       'https://www.googleapis.com/auth/calendar.events',
+                       'https://www.googleapis.com/auth/calendar.events.readonly']
+
+    def _authenticate(self):
+        creds = self.token
+
+        if creds:
+            creds = Credentials.from_authorized_user_file('{"token":self.token}', self.scopes)
+
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+                flow = InstalledAppFlow.from_client_secrets_file("client_secret_app_escritorio_oauth.json", self.scopes)
+                creds = flow.run_local_server(port=0)
+
+        return build("calendar", "v3", credentials=creds)
 
     ...
 

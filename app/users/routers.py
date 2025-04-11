@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from .schemas import User, UserInDB, Token, TokenData
-from .models import User as UserModel
+from .models import User as UserModel, GoogleCredential
 from app.db.session import get_db_session
 import requests
 from authlib.integrations.starlette_client import OAuth
@@ -26,7 +26,7 @@ GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 router = APIRouter(prefix="/users", tags=["Users"])
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 SECRET_KEY = os.getenv('SECRET_KEY')
 ALGORITHM = "HS256"
@@ -46,7 +46,8 @@ oauth.register(
     redirect_uri=os.getenv("REDIRECT_URL"),
 
     jwks_uri="https://www.googleapis.com/oauth2/v3/certs",
-    client_kwargs={"scope": "openid profile email"},
+    client_kwargs={
+        "scope": "openid profile email https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.events.readonly"},
 )
 
 
@@ -87,6 +88,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: AsyncSession = Depends(get_db_session)):
+    print(token)
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -94,10 +96,11 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: As
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username = payload.get("sub")
+        # username = payload.get("sub")
+        username = await UserModel(google_id=payload.get("sub")).getByGId()
         if username is None:
             raise credentials_exception
-        token_data = TokenData(username=username)
+        token_data = TokenData(username=username.username)
     except InvalidTokenError:
         raise credentials_exception
     user = await get_user(db, username=token_data.username)
@@ -124,7 +127,7 @@ async def log_user(user_id, user_email, user_name, user_pic, first_logged_in, la
     usuario = None
     try:
         usuario = await UserModel(username=user_name).get()
-        print(f'Usuario get: {usuario}')
+        # print(f'Usuario get: {usuario.toJSON()}')
         if usuario != None:
             await UserModel(id=usuario.id, username=user_name, email=user_email, password=usuario.password,
                             role=usuario.role,
@@ -132,9 +135,9 @@ async def log_user(user_id, user_email, user_name, user_pic, first_logged_in, la
         else:
             new_user = UserModel(username=user_name, email=user_email, avatar=user_pic, google_id=user_id,
                                  disabled=False)
-            print(f'Usuario en el router: {new_user.toJSON()}')
+            # print(f'Usuario en el router: {new_user.toJSON()}')
             usuario = await new_user.create()
-            print(f'Usuario despues del create: {usuario.toJSON()}')
+            # print(f'Usuario despues del create: {usuario.toJSON()}')
 
 
     except Exception as e:
@@ -142,6 +145,18 @@ async def log_user(user_id, user_email, user_name, user_pic, first_logged_in, la
     finally:
         if usuario != None:
             logger.info("User created or updated")
+
+
+async def get_google_creds(
+        user: User = Depends(get_current_active_user),
+        db: AsyncSession = Depends(get_db_session)
+):
+    # print(user.dict())
+    creds = await GoogleCredential.getFromUser(user_id=user.google_id)
+    # print(creds.to_dict())
+    if not creds or creds.expires_at < datetime.utcnow():
+        raise HTTPException(403, "Reautenticación requerida con Google")
+    return creds
 
 
 # async def log_token(access_token, user_email, session_id):
@@ -170,7 +185,6 @@ async def login(request: Request, db: AsyncSession = Depends(get_db_session)):
     frontend_url = os.getenv("FRONTEND_URL")
     redirect_url = os.getenv("REDIRECT_URL")
     request.session["login_redirect"] = frontend_url
-
     return await oauth.auth_demo.authorize_redirect(request, redirect_url, prompt="consent")
 
 
@@ -216,6 +230,9 @@ async def auth(request: Request, db: AsyncSession = Depends(get_db_session)):
 
     redirect_url = request.session.pop("login_redirect", "")
     response = RedirectResponse(redirect_url)
+    print(f'Access Token: {access_token}')
+    print(f'Access Token Google: ' + token['access_token'])
+    print(f'Time when expire{datetime.utcnow() + timedelta(seconds=token["expires_in"])}')
     response.set_cookie(
         key="access_token",
         value=access_token,
@@ -223,7 +240,20 @@ async def auth(request: Request, db: AsyncSession = Depends(get_db_session)):
         secure=True,  # Ensure you're using HTTPS
         samesite="strict",  # Set the SameSite attribute to None
     )
-
+    if await GoogleCredential(user_id=user_id).get():
+        await GoogleCredential(
+            user_id=user_id,
+            access_token=token['access_token'],
+            refresh_token=token.get('refresh_token'),
+            expires_at=datetime.utcnow() + timedelta(seconds=token['expires_in'])
+        ).update()
+    else:
+        await GoogleCredential(
+            user_id=user_id,
+            access_token=token['access_token'],
+            refresh_token=token.get('refresh_token'),
+            expires_at=datetime.utcnow() + timedelta(seconds=token['expires_in'])
+        ).create()
     return response
 
 
@@ -231,7 +261,7 @@ async def auth(request: Request, db: AsyncSession = Depends(get_db_session)):
 async def logout(request: Request):
     request.session.clear()
     response = JSONResponse(content={"message": "Logged out successfully."})
-    response.delete_cookie("token")
+    response.delete_cookie("access_token")
     return response
 
 

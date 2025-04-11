@@ -153,7 +153,7 @@ class Agent(Base):
 
         result = await db.execute(select(Call).where(sqlalchemy.and_(Call.agent_id == self.id, Call.status == "ready")))
         numeros = result.scalars().all()
-        print(numeros)
+        # print(numeros)
 
         # print(payload)
         headers = {
@@ -186,7 +186,8 @@ class Agent(Base):
             payload = {
                 "voice": self.voice.value,
                 "instrucciones": self.instrucciones.format(customer_name=phone_number_to_call.contact_name),
-                "creatividadVoz": self.creatividadVoz
+                "creatividadVoz": self.creatividadVoz,
+                "googleCreds": self.googleCreds
             }
             async with httpx.AsyncClient() as client:
                 response = await client.post(
@@ -211,7 +212,7 @@ class Agent(Base):
 
             call_id = call.sid
             phone_number_to_call.call_id = call_id
-            phone_number_to_call.update()
+            await phone_number_to_call.update()
             # await self.log_call_sid(call_id)
             print(f"Llamada iniciada al número: {phone_number_to_call.phone_number}, SID: {call.sid}")
 
@@ -234,7 +235,7 @@ class Agent(Base):
             if llamada.status in ['completed', 'failed', 'busy', 'no-answer']:
                 # llamada.transcriptions.create(inbound_track_label="Cliente",outbound_track_label="AI")
                 # llamada.recordings.list()[0]..transcriptions.create()
-                print(llamada.transcriptions)
+                print(llamada.transcriptions.__dict__)
                 # await asyncio.sleep(30)
                 # print(llamada._proxy.__dict__)
                 # print(f"Llamada a dict: {llamada.__dict__}")
@@ -244,7 +245,7 @@ class Agent(Base):
                 call_db.call_date = llamada.date_created
                 call_db.call_duration = llamada.duration
                 call_db.call_json_twilio = f'{llamada.__dict__}'
-                call_db.update()
+                await call_db.update()
                 break
 
             await asyncio.sleep(5)  # Consulta cada 5 segundos sin bloquear

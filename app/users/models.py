@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import update, delete
 
-from app.db.session import get_db_session
+from app.db.session import get_db_session_class
 
 # from app.db.session import Base
 load_dotenv()
@@ -27,6 +27,7 @@ MYSQL_DATABASE = os.getenv('MYSQL_DATABASE')
 DOMAIN = re.sub(r'(^\w+:|^)\/\/|\/+$', '', raw_domain)  # Strip protocols and trailing slashes from DOMAIN
 
 Base = declarative_base()
+Cred_Base = declarative_base()
 
 
 class User(Base):
@@ -60,7 +61,7 @@ class User(Base):
 
     async def update(self):
 
-        async with get_db_session() as s:
+        async with get_db_session_class() as s:
             mapped_values = {}
             for item in User.__dict__.items():
                 field_name = item[0]
@@ -72,12 +73,12 @@ class User(Base):
             await s.commit()
 
     async def delete(self):
-        async with get_db_session() as s:
+        async with get_db_session_class() as s:
             await s.execute(delete(User).where(User.id == self.id))
             await s.commit()
 
     async def create(self):
-        async with get_db_session() as s:
+        async with get_db_session_class() as s:
             # await s.add(self)
             s.add(self)
             await s.commit()
@@ -85,8 +86,71 @@ class User(Base):
             return await self.get()
 
     async def get(self):
-        async with get_db_session() as s:
+        async with get_db_session_class() as s:
             result = await s.execute(select(User).where(User.username == self.username))
+            return result.scalar()
+
+    async def getByGId(self):
+        async with get_db_session_class() as s:
+            result = await s.execute(select(User).where(User.google_id == self.google_id))
+            return result.scalar()
+
+
+class GoogleCredential(Cred_Base):
+    __tablename__ = "google_credentials"
+
+    user_id = Column(sqlalchemy.String(70), primary_key=True)
+    access_token = Column(sqlalchemy.String(400), nullable=False)
+    refresh_token = Column(sqlalchemy.String(400))
+    expires_at = Column(sqlalchemy.DateTime, nullable=False)
+
+    def to_dict(self):
+        """Convierte la instancia del modelo a un diccionario serializable"""
+        return {
+            'user_id': self.user_id,
+            'access_token': self.access_token,
+            'refresh_token': self.refresh_token,
+            'expires_at': self.expires_at.isoformat(),
+        }
+
+    def toJSON(self):
+        return json.dumps(self.to_dict(), indent=4)
+
+    async def update(self):
+
+        async with get_db_session_class() as s:
+            mapped_values = {}
+            for item in GoogleCredential.__dict__.items():
+                field_name = item[0]
+                field_type = item[1]
+                is_column = isinstance(field_type, InstrumentedAttribute)
+                if is_column:
+                    mapped_values[field_name] = getattr(self, field_name)
+            await s.execute(
+                update(GoogleCredential).where(GoogleCredential.user_id == self.user_id).values(**mapped_values))
+            await s.commit()
+
+    async def delete(self):
+        async with get_db_session_class() as s:
+            await s.execute(delete(GoogleCredential).where(GoogleCredential.user_id == self.user_id))
+            await s.commit()
+
+    async def create(self):
+        async with get_db_session_class() as s:
+            # await s.add(self)
+            s.add(self)
+            await s.commit()
+            await s.refresh(self)
+            return await self.get()
+
+    async def get(self):
+        async with get_db_session_class() as s:
+            result = await s.execute(select(GoogleCredential).where(GoogleCredential.user_id == self.user_id))
+            return result.scalar()
+
+    async def getFromUser(user_id):
+        async with get_db_session_class() as s:
+            result = await s.execute(select(GoogleCredential).where(GoogleCredential.user_id == user_id))
             return result.scalar()
 
 
@@ -114,7 +178,7 @@ class Issued_tokens(Base):
 
     async def update(self):
 
-        async with get_db_session() as s:
+        async with get_db_session_class() as s:
             mapped_values = {}
             for item in Issued_tokens.__dict__.items():
                 field_name = item[0]
@@ -126,18 +190,18 @@ class Issued_tokens(Base):
             await s.commit()
 
     async def delete(self):
-        async with get_db_session() as s:
+        async with get_db_session_class() as s:
             await s.execute(delete(Issued_tokens).where(Issued_tokens.id == self.id))
             await s.commit()
 
     async def create(self):
 
-        async with get_db_session() as s:
+        async with get_db_session_class() as s:
             await s.add(self)
             await s.commit()
             await s.refresh(self)
 
     async def get(self):
-        async with get_db_session() as s:
+        async with get_db_session_class() as s:
             result = await s.execute(select(Issued_tokens).where(Issued_tokens.id == self.id))
             return result.scalar()

@@ -20,6 +20,7 @@ class TokenData(BaseModel):
 
 
 class User(BaseModel):
+    id: int | None = None
     username: str
     email: str | None = None
     role: str | None = None
@@ -29,4 +30,4 @@ class User(BaseModel):
 
 
 class UserInDB(User):
-    password: str
+    password: str | None = None

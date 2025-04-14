@@ -23,7 +23,8 @@ if not (OPENAI_API_KEY):
 LOG_EVENT_TYPES = [
     'error', 'response.content.done', 'rate_limits.updated', 'response.done',
     'input_audio_buffer.committed', 'input_audio_buffer.speech_stopped',
-    'input_audio_buffer.speech_started', 'session.created', 'response.function_call'
+    'input_audio_buffer.speech_started', 'session.created', 'response.function_call', 'response.create',
+    'conversation.item.create', 'response.function_call_arguments.done',
 ]
 SHOW_TIMING_MATH = False
 
@@ -65,7 +66,8 @@ class SessionManager:
 
     async def handle_function_call(self, item: dict):
         print("Handling function call:", item)
-        fn_def = next((f for f in functions if f['schema']['name'] == item['name']), None)
+        # fn_def = next((f for f in functions if f['schema']['name'] == item['name']), None)
+        fn_def = functions.get_by_name(item['name'])
         if not fn_def:
             raise ValueError(f"No handler found for function: {item['name']}")
 
@@ -77,8 +79,12 @@ class SessionManager:
             })
 
         try:
-            print("Calling function:", fn_def['schema']['name'], args)
-            result = await fn_def['handler'](args, self.GOOGLE_CREDS)
+            # print("Calling function:", fn_def['schema']['name'], args)
+            print("Calling function")
+            # result = await fn_def['handler'](args, self.GOOGLE_CREDS)
+
+            print(f'Google Creds: {self.GOOGLE_CREDS}')
+            result = await fn_def.handler(args, self.GOOGLE_CREDS)
             return result
         except Exception as err:
             print("Error running function:", err)
@@ -193,9 +199,15 @@ class SessionManager:
                         await self.send_mark(websocket, openai_ws)
                     except Exception as e:
                         print(f"Error processing audio data: {e}")
-                if response['type'] == 'response.function_call':
+                if response['type'] == 'response.function_call' or response[
+                    'type'] == 'response.function_call_arguments.done':
                     print(f'Intentando llamar funciones', response)
-                    results = self.handle_function_call(response)
+                    print(f'Args: {response["arguments"]}')
+                    # print(f'Function Id: {response["item_id"]}')
+                    results = await self.handle_function_call(response)
+                    print(f'Resultados de la funcion: {results}')
+                    # if results == [] or results == None:
+                    #    results = "No hay nada"
                     # function_name = response['function_call']['name']
                     # args = json.loads(response['function_call']['arguments'])
                     #
@@ -207,10 +219,16 @@ class SessionManager:
 
                     # Envía los resultados de vuelta a OpenAI
                     await openai_ws.send(json.dumps({
-                        "type": "function_response",
-                        "function_call_id": response['function_call_id'],
-                        "content": json.dumps(results)
+                        "type": "conversation.item.create",
+                        "item": {
+                            "type": "function_call_output",
+                            "call_id": response['call_id'],
+                            # "content": json.dumps(results),
+                            "output": json.dumps(results),
+                        }
                     }))
+                    await openai_ws.send(json.dumps({"type": "response.create"}))
+
                 if response['type'] == 'input_audio_buffer.speech_started':
                     print("Speech started detected")
                     if self.last_assistant_item:

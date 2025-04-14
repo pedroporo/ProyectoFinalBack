@@ -151,9 +151,9 @@ async def get_google_creds(
         user: User = Depends(get_current_active_user),
         db: AsyncSession = Depends(get_db_session)
 ):
-    # print(user.dict())
+    print(user.dict())
     creds = await GoogleCredential.getFromUser(user_id=user.google_id)
-    # print(creds.to_dict())
+    print(creds.to_dict())
     if not creds or creds.expires_at < datetime.utcnow():
         raise HTTPException(403, "Reautenticación requerida con Google")
     return creds
@@ -255,6 +255,18 @@ async def auth(request: Request, db: AsyncSession = Depends(get_db_session)):
             expires_at=datetime.utcnow() + timedelta(seconds=token['expires_in'])
         ).create()
     return response
+
+
+@router.get("/testDB")
+async def test(
+        creds: GoogleCredential = Depends(get_google_creds)):
+    from googleapiclient.discovery import build
+    from google.oauth2.credentials import Credentials
+    creds2 = Credentials(token=creds.access_token)
+    print(creds.to_dict())
+    service = build('calendar', 'v3', credentials=creds2)
+    print(service.calendarList().list().execute())
+    return service.calendarList().list().execute()
 
 
 @router.get("/logout")

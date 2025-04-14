@@ -230,7 +230,7 @@ class Agent(Base):
                 lambda: self.client.calls(call_sid).fetch()
             )
 
-            print(f"Estado llamada {call_sid}: {llamada.status}")
+            # print(f"Estado llamada {call_sid}: {llamada.status}")
 
             if llamada.status in ['completed', 'failed', 'busy', 'no-answer']:
                 # llamada.transcriptions.create(inbound_track_label="Cliente",outbound_track_label="AI")

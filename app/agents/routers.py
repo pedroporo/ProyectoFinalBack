@@ -84,7 +84,7 @@ async def get_agent(db: AsyncSession = Depends(get_db_session)):
 async def agent_make_calls(request: Request, agent_id: int, db: AsyncSession = Depends(get_db_session),
                            creds: GoogleCredential = Depends(get_google_creds)):
     agent = await Agent(id=agent_id).get()
-    agent.googleCreds = creds.toJSON()
+    agent.googleCreds = creds.access_token
     await agent.make_call(db)
 
     if not agent:

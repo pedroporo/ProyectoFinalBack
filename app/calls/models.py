@@ -12,6 +12,7 @@ from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import update, delete
+from datetime import datetime
 
 from app.db.session import get_db_session_class
 
@@ -91,4 +92,64 @@ class Call(Base):
     async def get(self):
         async with get_db_session_class() as s:
             result = await s.execute(select(Call).where(Call.id == self.id))
+            return result.scalar()
+
+    async def getBySid(self):
+        async with get_db_session_class() as s:
+            result = await s.execute(select(Call).where(Call.call_id == self.call_id))
+            return result.scalar()
+
+
+class Transcription(Base):
+    __tablename__ = "transcriptions"
+    id = Column(sqlalchemy.Integer, primary_key=True)
+    call_id = Column(sqlalchemy.String(60))
+    content = Column(sqlalchemy.Text)
+    created_at = Column(sqlalchemy.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        """Convierte la instancia del modelo a un diccionario serializable"""
+        return {
+            'id': self.id,
+            'call_id': self.call_id,
+            'content': self.content,
+            'created_at': self.created_at,
+        }
+
+    def toJSON(self):
+
+        return json.dumps(self.to_dict(), indent=4)
+
+    async def update(self):
+
+        async with get_db_session_class() as s:
+            mapped_values = {}
+            for item in Transcription.__dict__.items():
+                field_name = item[0]
+                field_type = item[1]
+                is_column = isinstance(field_type, InstrumentedAttribute)
+                if is_column:
+                    mapped_values[field_name] = getattr(self, field_name)
+            await s.execute(update(Transcription).where(Transcription.id == self.id).values(**mapped_values))
+            await s.commit()
+
+    async def delete(self):
+        async with get_db_session_class() as s:
+            await s.execute(delete(Transcription).where(Transcription.id == self.id))
+            await s.commit()
+
+    async def create(self):
+        async with get_db_session_class() as s:
+            s.add(self)
+            await s.commit()
+            await s.refresh(self)
+
+    async def get(self):
+        async with get_db_session_class() as s:
+            result = await s.execute(select(Transcription).where(Transcription.id == self.id))
+            return result.scalar()
+
+    async def getBySid(self):
+        async with get_db_session_class() as s:
+            result = await s.execute(select(Transcription).where(Transcription.call_id == self.call_id))
             return result.scalar()

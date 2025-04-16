@@ -65,7 +65,7 @@ class SessionManager:
         await self.send_initial_conversation_item(openai_ws)
 
     async def handle_function_call(self, item: dict):
-        print("Handling function call:", item)
+        # print("Handling function call:", item)
         # fn_def = next((f for f in functions if f['schema']['name'] == item['name']), None)
         fn_def = functions.get_by_name(item['name'])
         if not fn_def:
@@ -80,10 +80,10 @@ class SessionManager:
 
         try:
             # print("Calling function:", fn_def['schema']['name'], args)
-            print("Calling function")
+            # print("Calling function")
             # result = await fn_def['handler'](args, self.GOOGLE_CREDS)
 
-            print(f'Google Creds: {self.GOOGLE_CREDS}')
+            # print(f'Google Creds: {self.GOOGLE_CREDS}')
             result = await fn_def.handler(args, self.GOOGLE_CREDS)
             return result
         except Exception as err:
@@ -150,7 +150,10 @@ class SessionManager:
 
                 elif data['event'] == 'start':
                     self.stream_sid = data['start']['streamSid']
+                    self.CALL_ID = data['start']['callSid']
                     print(f"Stream iniciado: {self.stream_sid}")
+                    print(f"Stream callSid: {self.CALL_ID}")
+                    # self.client.calls.get(self.CALL_ID)
                     self.response_start_timestamp_twilio = None
                     self.latest_media_timestamp = 0
                     self.last_assistant_item = None
@@ -159,6 +162,8 @@ class SessionManager:
                         self.mark_queue.pop(0)
                 elif data['event'] == 'stop':
                     print("Cliente detuvo la llamada")
+                    if self.mark_queue:
+                        self.mark_queue.pop(0)
                     await openai_ws.close()
 
         except WebSocketDisconnect:
@@ -202,20 +207,12 @@ class SessionManager:
                 if response['type'] == 'response.function_call' or response[
                     'type'] == 'response.function_call_arguments.done':
                     print(f'Intentando llamar funciones', response)
-                    print(f'Args: {response["arguments"]}')
+                    # print(f'Args: {response["arguments"]}')
                     # print(f'Function Id: {response["item_id"]}')
                     results = await self.handle_function_call(response)
-                    print(f'Resultados de la funcion: {results}')
+                    # print(f'Resultados de la funcion: {results}')
                     # if results == [] or results == None:
                     #    results = "No hay nada"
-                    # function_name = response['function_call']['name']
-                    # args = json.loads(response['function_call']['arguments'])
-                    #
-                    # if function_name == 'check_google_calendar':
-                    #     results = await self.check_google_calendar(args['time_min'], args['time_max'])
-                    # elif function_name == 'create_google_event':
-                    #     results = await self.create_google_event(args['summary'], args['start'], args['end'],
-                    #                                              args['email'])
 
                     # Envía los resultados de vuelta a OpenAI
                     await openai_ws.send(json.dumps({

@@ -28,6 +28,7 @@ load_dotenv()
 # Configuration
 TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
+TWILIO_SERVICE_ID = os.getenv('TWILIO_SERVICE_ID')
 PHONE_NUMBER_FROM = os.getenv('TWILIO_NUMBER')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 raw_domain = os.getenv('DOMAIN', '')
@@ -219,6 +220,7 @@ class Agent(Base):
             # Espera a que esta llamada termine antes de continuar con la siguiente
             await self.esperar_a_que_finalice(call.sid, phone_number_to_call)
             await asyncio.sleep(5)  # Espera 5 segundos entre llamadas
+        return {"message": f'Se han llamado a {len(numeros)} numeros telefonicos'}
 
     async def esperar_a_que_finalice(self, call_sid, call_db):
         """Espera asincrónicamente a que termine una llamada"""
@@ -235,17 +237,61 @@ class Agent(Base):
             if llamada.status in ['completed', 'failed', 'busy', 'no-answer']:
                 # llamada.transcriptions.create(inbound_track_label="Cliente",outbound_track_label="AI")
                 # llamada.recordings.list()[0]..transcriptions.create()
-                print(llamada.transcriptions.__dict__)
+                # print(llamada.transcriptions.__dict__)
                 # await asyncio.sleep(30)
                 # print(llamada._proxy.__dict__)
                 # print(f"Llamada a dict: {llamada.__dict__}")
                 # print(llamada.recordings.list()[0])
+
                 call_db.call_id = llamada.sid
                 call_db.status = llamada.status
                 call_db.call_date = llamada.date_created
                 call_db.call_duration = llamada.duration
                 call_db.call_json_twilio = f'{llamada.__dict__}'
                 await call_db.update()
+                if llamada.status == 'completed':
+                    # await asyncio.sleep(5)
+                    recordings = self.client.recordings.list(call_sid=llamada.sid, page_size=1)
+                    # transcriptions = self.client.intelligence.v2.transcripts.list(source_sid=recordings[0].sid,
+                    #                                                               page_size=1)
+                    print(recordings[0].sid)
+                    # print(llamada.to)
+                    transcript = None
+                    try:
+                        transcript = self.client.intelligence.v2.transcripts.create(
+                            channel={
+                                "media_properties": {"source_sid": recordings[0].sid},
+                                # "media_properties": {"media_url": self.get_recording_url(call_sid=llamada.sid)},
+                                "participants": [
+                                    {
+                                        "user_id": "id1",
+                                        "channel_participant": 1,
+                                        # "media_participant_id": llamada.to,
+                                        "full_name": call_db.contact_name,
+                                        "role": "Cliente",
+                                    },
+                                    {
+                                        "user_id": "id2",
+                                        "channel_participant": 2,
+                                        # "media_participant_id": PHONE_NUMBER_FROM,
+                                        "full_name": "IA",
+                                        "role": "IA",
+                                    },
+                                ],
+                            },
+                            service_sid=TWILIO_SERVICE_ID
+                        )
+                    except Exception as e:
+                        print(f"Error al crear la transcripción: {e}")
+                    print(f'TranscriptInstance: {transcript.__dict__}')
+
+                    await self.esperar_a_transcript(transcript_sid=transcript.sid, call_sid=llamada.sid)
+
+                    # print(transcriptions[0].sentences.list(redacted=False))
+                    # recording_url = self.get_recording_url(llamada.sid)
+                    # transcription = await self.transcribe_audio(recording_url)
+                    # await self.save_transcription(text=transcription, call_sid=llamada.sid)
+                    # print(f"Transcripción: {transcription}")
                 break
 
             await asyncio.sleep(5)  # Consulta cada 5 segundos sin bloquear
@@ -253,3 +299,76 @@ class Agent(Base):
     async def log_call_sid(self, call_sid):
         """Log the call SID."""
         print(f"Call started with SID: {call_sid}")
+
+    def get_recording_url(self, call_sid: str) -> str:
+        recordings = self.client.recordings.list(call_sid=call_sid, page_size=1)
+        if not recordings:
+            raise Exception("No se encontraron grabaciones para esta llamada")
+        return f"https://api.twilio.com{recordings[0].uri.replace('.json', '')}"
+
+    async def transcribe_audio(self, audio_url: str) -> str:
+        import requests
+        from openai import OpenAI
+        openai_client = OpenAI(api_key=OPENAI_API_KEY)
+        # Descargar el archivo de audio desde Twilio
+        # self.client.request('GET', uri=audio_url)
+
+        try:
+            response = requests.get(url=audio_url, auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN), timeout=10)
+            response.raise_for_status()  # Lanza error para códigos 4xx/5xx
+
+        except requests.HTTPError as err:
+            error_msg = f"Error HTTP {err.response.status_code}: {err.response.text}"
+            print(error_msg)
+            raise Exception(error_msg)
+
+        except requests.Timeout:
+            raise Exception("Timeout al descargar el audio")
+
+        except Exception as err:
+            raise Exception(f"Error inesperado: {str(err)}")
+
+        if response.status_code != 200:
+            raise Exception("Error al descargar el archivo de audio")
+
+        # Guardar el archivo localmente
+        with open("temp_audio.wav", "wb") as f:
+            f.write(response.content)
+            f.close()
+
+        # Enviar a la API de OpenAI para transcripción
+        with open("temp_audio.wav", "rb") as audio_file:
+            transcription = openai_client.audio.transcriptions.create(
+                file=audio_file,
+                model="whisper-1",
+                response_format="text",
+
+            )
+            audio_file.close()
+
+        os.remove("temp_audio.wav")
+        return transcription
+
+    async def esperar_a_transcript(self, transcript_sid, call_sid):
+        while True:
+            transcript = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: self.client.intelligence.v2.transcripts(transcript_sid).fetch()
+            )
+            # print(f"Estado llamada {transcript_sid}: {transcript.status}")
+            if transcript.status == 'completed':
+                texto = '\n'.join(str(x.transcript) for x in transcript.sentences.list(redacted=False))
+                await self.save_transcription(text=texto, call_sid=call_sid)
+                transcript.delete()
+                print(f"Transcripción: {texto}")
+                break
+            await asyncio.sleep(5)
+
+    async def save_transcription(self, text: str, call_sid):
+
+        from app.calls.models import Transcription
+        transcription = Transcription(
+            call_id=call_sid,
+            content=text
+        )
+        await transcription.create()

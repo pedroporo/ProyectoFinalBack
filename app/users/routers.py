@@ -232,7 +232,9 @@ async def auth(request: Request, db: AsyncSession = Depends(get_db_session)):
     response = RedirectResponse(redirect_url)
     print(f'Access Token: {access_token}')
     print(f'Access Token Google: ' + token['access_token'])
-    print(f'Time when expire{datetime.utcnow() + timedelta(seconds=token["expires_in"])}')
+    print(f'Time when expire: {datetime.now() + timedelta(seconds=token["expires_in"])}')
+    print(f'Time Now: {datetime.now()}')
+    print(f'Time expire ine: {timedelta(seconds=token["expires_in"])}')
     response.set_cookie(
         key="access_token",
         value=access_token,
@@ -245,14 +247,14 @@ async def auth(request: Request, db: AsyncSession = Depends(get_db_session)):
             user_id=user_id,
             access_token=token['access_token'],
             refresh_token=token.get('refresh_token'),
-            expires_at=datetime.utcnow() + timedelta(seconds=token['expires_in'])
+            expires_at=datetime.now() + timedelta(seconds=token['expires_in'])
         ).update()
     else:
         await GoogleCredential(
             user_id=user_id,
             access_token=token['access_token'],
             refresh_token=token.get('refresh_token'),
-            expires_at=datetime.utcnow() + timedelta(seconds=token['expires_in'])
+            expires_at=datetime.now() + timedelta(seconds=token['expires_in'])
         ).create()
     return response
 

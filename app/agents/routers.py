@@ -85,8 +85,7 @@ async def agent_make_calls(request: Request, agent_id: int, db: AsyncSession = D
                            creds: GoogleCredential = Depends(get_google_creds)):
     agent = await Agent(id=agent_id).get()
     agent.googleCreds = creds.access_token
-    await agent.make_call(db)
 
     if not agent:
         raise HTTPException(status_code=404, detail="Agente no encontrado")
-    # return JSONResponse(content=agent.to_dict(), status_code=200)
+    return JSONResponse(content=await agent.make_call(db), status_code=200)

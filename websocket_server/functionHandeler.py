@@ -1,16 +1,20 @@
-import array
+from dotenv import load_dotenv
 from datetime import datetime
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
-from fastapi import APIRouter, Depends, status, HTTPException, FastAPI, Request, Cookie
+import os
 import requests
 import json
-from schemas import FunctionHandler, FunctionSchema
+from websocket_server.schemas import FunctionHandler, FunctionSchema
 from typing import Dict, Any, Callable, Optional, List
 from websocket_server.Services.Google import get_calendar_service
-from app.users.models import GoogleCredential
-from app.users.routers import get_google_creds
 
+load_dotenv()
+
+MAIL_HOST = os.getenv('MAIL_HOST')
+MAIL_PORT = int(os.getenv('MAIL_PORT'))
+MAIL_USERNAME = os.getenv('MAIL_USERNAME')
+MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
+MAIL_RECIVERS = os.getenv('MAIL_RECIVERS')
 # import logging
 
 # logging.basicConfig(level=logging.DEBUG)
@@ -19,6 +23,8 @@ scopes = ['https://www.googleapis.com/auth/calendar', 'https://www.googleapis.co
           'https://www.googleapis.com/auth/calendar.events.readonly']
 
 google_creds = None
+host = 'smtp.gmail.com'
+port = 465
 
 
 class FunctionHandlerArray:
@@ -27,7 +33,7 @@ class FunctionHandlerArray:
 
     def to_dict(self):
         """Convierte la instancia del modelo a un diccionario serializable"""
-        print(jsonable_encoder([f.schema.to_dict() for f in self._array]))
+        # print(jsonable_encoder([f.schema.to_dict() for f in self._array]))
         return jsonable_encoder([f.schema.to_dict() for f in self._array])
 
     def toJSON(self):
@@ -134,7 +140,7 @@ async def check_google_calendar(args, creds):
         timeMax=args['time_max'],
         singleEvents=True
     ).execute()
-    print(events_result.get('items', []))
+    # print(events_result.get('items', []))
     return events_result.get('items', [])
 
 
@@ -148,14 +154,34 @@ async def create_google_event(args, creds):
             'end': {'dateTime': args['end']},
             'attendees': [{'email': args['email']}]
         }
-        print(f"Credenciales usadas: {creds[:15]}...")
-        print(f"Intentando crear evento: {json.dumps(event, indent=2)}")
+        # print(f"Credenciales usadas: {creds[:15]}...")
+        # print(f"Intentando crear evento: {json.dumps(event, indent=2)}")
         return google_service.events().insert(
             calendarId='primary',
             body=event
         ).execute()
     except Exception as e:
         return {"error": f"Formato de fecha inválido, usar ISO 8601: {e}"}
+
+
+def send_email(args):
+    # print(f'Google creds in fun: {creds}')
+    import smtplib
+    from email.mime.text import MIMEText
+    # smtpObj = smtplib.SMTP(host, port)
+    recivers = json.loads(MAIL_RECIVERS)
+    try:
+        msg = MIMEText(args['body'])
+        msg['Subject'] = args['subject']
+        msg['From'] = MAIL_USERNAME
+        msg['To'] = ', '.join(recivers)
+        with smtplib.SMTP_SSL(MAIL_HOST, MAIL_PORT) as smtp_server:
+            smtp_server.login(MAIL_USERNAME, MAIL_PASSWORD)
+            smtp_server.sendmail(MAIL_USERNAME, recivers, msg.as_string())
+        return {"success": f"El email a sido enviado con exito"}
+
+    except Exception as e:
+        return {"error": f"Ha ocurrido un error enviando el email: {e}"}
 
 
 async def get_weather(args):
@@ -200,4 +226,26 @@ functions.append(FunctionHandler(
         }
     ),
     handler=check_google_calendar
+))
+
+functions.append(FunctionHandler(
+    schema=FunctionSchema(
+        name="send_email",
+        description="Envia un email a hugo con el correo del cliente si esta interesado en que lo contactemos y si se puede se envia algo de contexto de la conversacion",
+        parameters={
+            "type": "object",
+            "properties": {
+                "subject": {"type": "string",
+                            "description": "Aviso de que hay un cliente interesado en que le contactemos."},
+                "body": {"type": "string",
+                         "description": "El contenido del correo a enviar, junto a la presentacion de quien eres y la informacion."}
+            },
+            "required": [
+                "subject",
+                "body"
+            ],
+            "additionalProperties": False,
+        }
+    ),
+    handler=send_email
 ))

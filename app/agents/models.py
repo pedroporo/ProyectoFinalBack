@@ -254,14 +254,11 @@ class Agent(Base):
                     recordings = self.client.recordings.list(call_sid=llamada.sid, page_size=1)
                     # transcriptions = self.client.intelligence.v2.transcripts.list(source_sid=recordings[0].sid,
                     #                                                               page_size=1)
-                    print(recordings[0].sid)
-                    # print(llamada.to)
                     transcript = None
                     try:
                         transcript = self.client.intelligence.v2.transcripts.create(
                             channel={
                                 "media_properties": {"source_sid": recordings[0].sid},
-                                # "media_properties": {"media_url": self.get_recording_url(call_sid=llamada.sid)},
                                 "participants": [
                                     {
                                         "user_id": "id1",
@@ -283,7 +280,6 @@ class Agent(Base):
                         )
                     except Exception as e:
                         print(f"Error al crear la transcripción: {e}")
-                    print(f'TranscriptInstance: {transcript.__dict__}')
 
                     await self.esperar_a_transcript(transcript_sid=transcript.sid, call_sid=llamada.sid)
 
@@ -357,7 +353,8 @@ class Agent(Base):
             )
             # print(f"Estado llamada {transcript_sid}: {transcript.status}")
             if transcript.status == 'completed':
-                texto = '\n'.join(str(x.transcript) for x in transcript.sentences.list(redacted=False))
+                texto = '\n'.join(f'{"IA" if x.media_channel == 2 else "Usuario"}: {str(x.transcript)}' for x in
+                                  transcript.sentences.list(redacted=False))
                 await self.save_transcription(text=texto, call_sid=call_sid)
                 transcript.delete()
                 print(f"Transcripción: {texto}")

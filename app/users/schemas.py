@@ -26,6 +26,7 @@ class User(BaseModel):
     role: str | None = None
     avatar: str | None = None
     google_id: str | None = None
+    call_json_twilio: Optional[str] = None
     disabled: bool | None = None
 
 

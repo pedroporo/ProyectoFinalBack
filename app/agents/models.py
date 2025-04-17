@@ -7,22 +7,19 @@ import httpx
 from sqlalchemy import Column
 from sqlalchemy.future import select
 import sqlalchemy
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db import Base
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy import update, delete
 # from main import call_id
 from twilio.rest import Client
 from dotenv import load_dotenv
 import re
-import time
 
 # from websocket_server.server import Server
 # from websocket_server.sessionManager import SessionManager
 
 from app.db.session import get_db_session_class, get_db_session
-
-# from app.db.session import Base
 
 load_dotenv()
 # Configuration
@@ -34,7 +31,6 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 raw_domain = os.getenv('DOMAIN', '')
 DOMAIN = re.sub(r'(^\w+:|^)\/\/|\/+$', '', raw_domain)
 PORT = int(os.getenv('PORT', 8765))
-Base = declarative_base()
 
 
 class VoiceOptionsEnum(enum.Enum):

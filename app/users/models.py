@@ -14,6 +14,7 @@ from sqlalchemy.future import select
 from sqlalchemy import update, delete
 
 from app.db.session import get_db_session_class
+from app.db import Users_Base as Base
 
 # from app.db.session import Base
 load_dotenv()
@@ -25,9 +26,6 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 raw_domain = os.getenv('DOMAIN', '')
 MYSQL_DATABASE = os.getenv('MYSQL_DATABASE')
 DOMAIN = re.sub(r'(^\w+:|^)\/\/|\/+$', '', raw_domain)  # Strip protocols and trailing slashes from DOMAIN
-
-Base = declarative_base()
-Cred_Base = declarative_base()
 
 
 class User(Base):
@@ -41,6 +39,7 @@ class User(Base):
     avatar = Column(sqlalchemy.String(4000), nullable=True)
     google_id = Column(sqlalchemy.String(3000), nullable=True, unique=True)
     disabled = Column(sqlalchemy.Boolean, default=False, insert_default=False, server_default="0")
+    config_user = Column(sqlalchemy.JSON, nullable=True)
 
     def to_dict(self):
         """Convierte la instancia del modelo a un diccionario serializable"""
@@ -53,6 +52,7 @@ class User(Base):
             'avatar': self.avatar,
             'google_id': self.google_id,
             'disabled': self.disabled,
+            'config_user': self.config_user,
         }
 
     def toJSON(self):
@@ -96,7 +96,7 @@ class User(Base):
             return result.scalar()
 
 
-class GoogleCredential(Cred_Base):
+class GoogleCredential(Base):
     __tablename__ = "google_credentials"
 
     user_id = Column(sqlalchemy.String(70), primary_key=True)

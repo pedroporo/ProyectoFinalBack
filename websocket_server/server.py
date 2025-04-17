@@ -18,6 +18,7 @@ from app.agents.routers import router as agents_router
 from app.calls.routers import router as calls_router
 from app.users.routers import router as users_router
 # from app.users.auth import router as auth_router
+from app import router as api_router
 from functionHandeler import functions
 
 load_dotenv()
@@ -38,13 +39,9 @@ ALGORITHM = "HS256"
 
 
 class Server:
-    def __init__(self, PORT=8765, PROFILE_ID=1):
+    def __init__(self, PORT=8765):
         self.app = FastAPI()
-        self.PROFILE_ID = PROFILE_ID
-        self.PROFILE_DATA = {}
-        self.app.include_router(agents_router)
-        self.app.include_router(calls_router)
-        self.app.include_router(users_router)
+        self.app.include_router(api_router)
         # self.app.include_router(auth_router, tags=["Authentication"])
         self.app.add_middleware(
             CORSMiddleware,
@@ -68,7 +65,7 @@ class Server:
         async def index_page(request: Request):
             return {"message": "Twilio Media Stream Server está corriendo!"}
 
-        @self.app.websocket('/media-stream', )
+        @self.app.websocket('/media-stream')
         async def media_stream(websocket: WebSocket):
             # self.session_manager.CALL_ID=self.CALL_ID
             await self.session_manager.handle_media_stream(websocket)
@@ -106,6 +103,6 @@ class Server:
 
 
 if __name__ == "__main__":
-    server = Server(PROFILE_ID=2)
+    server = Server()
     server.run()
     # print("Hola: " + server.CALL_ID)

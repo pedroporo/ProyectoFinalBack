@@ -18,9 +18,7 @@ MAIL_RECIVERS = os.getenv('MAIL_RECIVERS')
 # import logging
 
 # logging.basicConfig(level=logging.DEBUG)
-scopes = ['https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/calendar.readonly',
-          'https://www.googleapis.com/auth/calendar.events',
-          'https://www.googleapis.com/auth/calendar.events.readonly']
+
 
 google_creds = None
 host = 'smtp.gmail.com'

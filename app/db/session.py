@@ -7,6 +7,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from contextlib import asynccontextmanager
 from sshtunnel import SSHTunnelForwarder
 import asyncio
+from ..db import Base
 
 load_dotenv()
 

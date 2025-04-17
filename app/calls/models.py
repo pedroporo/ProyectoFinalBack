@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 import re
 import time
 import sqlalchemy
-from sqlalchemy.ext.declarative import declarative_base
+# from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -15,6 +15,8 @@ from sqlalchemy import update, delete
 from datetime import datetime
 
 from app.db.session import get_db_session_class
+
+from app.db import Base
 
 # from app.db.session import Base
 load_dotenv()
@@ -27,7 +29,8 @@ raw_domain = os.getenv('DOMAIN', '')
 MYSQL_DATABASE = os.getenv('MYSQL_DATABASE')
 DOMAIN = re.sub(r'(^\w+:|^)\/\/|\/+$', '', raw_domain)  # Strip protocols and trailing slashes from DOMAIN
 
-Base = declarative_base()
+
+# Base = declarative_base()
 
 
 class Call(Base):

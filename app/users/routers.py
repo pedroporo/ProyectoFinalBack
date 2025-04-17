@@ -24,8 +24,10 @@ load_dotenv()
 
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 router = APIRouter(prefix="/users", tags=["Users"])
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 SECRET_KEY = os.getenv('SECRET_KEY')
@@ -154,7 +156,7 @@ async def get_google_creds(
     print(user.dict())
     creds = await GoogleCredential.getFromUser(user_id=user.google_id)
     print(creds.to_dict())
-    if not creds or creds.expires_at < datetime.utcnow():
+    if not creds or creds.expires_at < datetime.now():
         raise HTTPException(403, "Reautenticación requerida con Google")
     return creds
 
@@ -208,8 +210,8 @@ async def auth(request: Request, db: AsyncSession = Depends(get_db_session)):
     user_id = user.get("sub")
     iss = user.get("iss")
     user_email = user.get("email")
-    first_logged_in = datetime.utcnow()
-    last_accessed = datetime.utcnow()
+    first_logged_in = datetime.now()
+    last_accessed = datetime.now()
 
     user_name = user_info.get("name")
     user_pic = user_info.get("picture")

@@ -40,7 +40,7 @@ ALGORITHM = "HS256"
 
 class Server:
     def __init__(self, PORT=8765):
-        self.app = FastAPI(debug=True)
+        self.app = FastAPI()
         self.app.include_router(api_router)
         # self.app.include_router(auth_router, tags=["Authentication"])
         self.app.add_middleware(
@@ -94,6 +94,12 @@ class Server:
         def get_tools():
             # print([f.schema.to_dict() for f in functions.get_all()])
             return JSONResponse([f.schema.to_dict() for f in functions.get_all()])
+
+        @self.app.on_event("startup")
+        async def startup():
+            # Inicializa la base de datos al iniciar la aplicación
+            from app.db.settings import local_db
+            await local_db.init_models()
 
     def run(self):
         uvicorn.run(self.app, host="0.0.0.0", port=self.PORT)

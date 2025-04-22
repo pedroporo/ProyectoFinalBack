@@ -14,7 +14,7 @@ from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from .schemas import User, UserInDB, Token, TokenData
 from .models import User as UserModel, GoogleCredential
-from app.db.session import get_db_session
+from app.db.settings import local_db
 import requests
 from authlib.integrations.starlette_client import OAuth
 from dotenv import load_dotenv
@@ -89,7 +89,8 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     return encoded_jwt
 
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: AsyncSession = Depends(get_db_session)):
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)],
+                           db: AsyncSession = Depends(local_db.get_db_session)):
     print(token)
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -112,7 +113,7 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: As
 
 
 async def get_current_active_user(
-        current_user: Annotated[User, Depends(get_current_user)], db: AsyncSession = Depends(get_db_session)
+        current_user: Annotated[User, Depends(get_current_user)], db: AsyncSession = Depends(local_db.get_db_session)
 ):
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
@@ -151,7 +152,7 @@ async def log_user(user_id, user_email, user_name, user_pic, first_logged_in, la
 
 async def get_google_creds(
         user: User = Depends(get_current_active_user),
-        db: AsyncSession = Depends(get_db_session)
+        db: AsyncSession = Depends(local_db.get_db_session)
 ):
     print(user.dict())
     creds = await GoogleCredential.getFromUser(user_id=user.google_id)
@@ -159,6 +160,24 @@ async def get_google_creds(
     if not creds or creds.expires_at < datetime.now():
         raise HTTPException(403, "Reautenticación requerida con Google")
     return creds
+
+
+async def refresh_google_token(refresh_token: str):
+    """
+    Refresca el access token de Google utilizando el refresh token.
+    """
+    GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+    data = {
+        "client_id": GOOGLE_CLIENT_ID,
+        "client_secret": GOOGLE_CLIENT_SECRET,
+        "refresh_token": refresh_token,
+        "grant_type": "refresh_token"
+    }
+    response = requests.post(GOOGLE_TOKEN_URL, data=data)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        response.raise_for_status()
 
 
 # async def log_token(access_token, user_email, session_id):
@@ -181,7 +200,7 @@ async def get_google_creds(
 
 
 @router.get("/login/google")
-async def login(request: Request, db: AsyncSession = Depends(get_db_session)):
+async def login(request: Request, db: AsyncSession = Depends(local_db.get_db_session)):
     request.session.clear()
     referer = request.headers.get("referer")
     frontend_url = os.getenv("FRONTEND_URL")
@@ -191,7 +210,7 @@ async def login(request: Request, db: AsyncSession = Depends(get_db_session)):
 
 
 @router.get("/auth/google")
-async def auth(request: Request, db: AsyncSession = Depends(get_db_session)):
+async def auth(request: Request, db: AsyncSession = Depends(local_db.get_db_session)):
     try:
         token = await oauth.auth_demo.authorize_access_token(request)
     except Exception as e:
@@ -234,6 +253,7 @@ async def auth(request: Request, db: AsyncSession = Depends(get_db_session)):
     response = RedirectResponse(redirect_url)
     print(f'Access Token: {access_token}')
     print(f'Access Token Google: ' + token['access_token'])
+    print(f'Token Google: ' + token)
     print(f'Time when expire: {datetime.now() + timedelta(seconds=token["expires_in"])}')
     print(f'Time Now: {datetime.now()}')
     print(f'Time expire ine: {timedelta(seconds=token["expires_in"])}')
@@ -283,7 +303,7 @@ async def logout(request: Request):
 
 @router.post("/login", tags=["Login"])
 async def login_for_access_token(
-        form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: AsyncSession = Depends(get_db_session)
+        form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: AsyncSession = Depends(local_db.get_db_session)
 ) -> Token:
     user = await authenticate_user(db, form_data.username, form_data.password)
     if not user:
@@ -301,7 +321,8 @@ async def login_for_access_token(
 
 @router.get("/me", response_model=User)
 async def read_users_me(
-        current_user: Annotated[User, Depends(get_current_active_user)], db: AsyncSession = Depends(get_db_session)
+        current_user: Annotated[User, Depends(get_current_active_user)],
+        db: AsyncSession = Depends(local_db.get_db_session)
 ):
     return current_user
 

@@ -19,7 +19,7 @@ from app.calls.routers import router as calls_router
 from app.users.routers import router as users_router
 # from app.users.auth import router as auth_router
 from app import router as api_router
-from functionHandeler import functions
+from websocket_server.functionHandeler import functions
 
 load_dotenv()
 
@@ -40,7 +40,7 @@ ALGORITHM = "HS256"
 
 class Server:
     def __init__(self, PORT=8765):
-        self.app = FastAPI()
+        self.app = FastAPI(debug=True)
         self.app.include_router(api_router)
         # self.app.include_router(auth_router, tags=["Authentication"])
         self.app.add_middleware(
@@ -95,8 +95,8 @@ class Server:
             # print([f.schema.to_dict() for f in functions.get_all()])
             return JSONResponse([f.schema.to_dict() for f in functions.get_all()])
 
-    def run(self, is_dev: bool = False):
-        uvicorn.run(self.app, host="0.0.0.0", port=self.PORT, reload=is_dev)
+    def run(self):
+        uvicorn.run(self.app, host="0.0.0.0", port=self.PORT)
 
     def assingCallid(self, callid):
         self.CALL_ID = callid
@@ -104,5 +104,5 @@ class Server:
 
 if __name__ == "__main__":
     server = Server()
-    server.run(is_dev=True)
+    server.run()
     # print("Hola: " + server.CALL_ID)

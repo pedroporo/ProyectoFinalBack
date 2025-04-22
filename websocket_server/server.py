@@ -92,11 +92,11 @@ class Server:
 
         @self.app.get("/tools", tags=["Agents"])
         def get_tools():
-            print([f.schema.to_dict() for f in functions.get_all()])
+            # print([f.schema.to_dict() for f in functions.get_all()])
             return JSONResponse([f.schema.to_dict() for f in functions.get_all()])
 
-    def run(self):
-        uvicorn.run(self.app, host="0.0.0.0", port=self.PORT)
+    def run(self, is_dev: bool = False):
+        uvicorn.run(self.app, host="0.0.0.0", port=self.PORT, reload=is_dev)
 
     def assingCallid(self, callid):
         self.CALL_ID = callid
@@ -104,5 +104,5 @@ class Server:
 
 if __name__ == "__main__":
     server = Server()
-    server.run()
+    server.run(is_dev=True)
     # print("Hola: " + server.CALL_ID)

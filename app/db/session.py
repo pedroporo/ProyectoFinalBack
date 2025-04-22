@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from sshtunnel import SSHTunnelForwarder
 import asyncio
 from ..db import Base
+from ..db import Users_Base
 
 load_dotenv()
 
@@ -36,19 +37,11 @@ async_session_factory = async_sessionmaker(bind=engine, expire_on_commit=False)
 
 async def init_models():
     async with engine.begin() as conn:
-        from app.agents.models import Base
-        from app.calls.models import Base as call_base
-        from app.users.models import Base as user_base
-        from app.users.models import Cred_Base as cred_base
-        await conn.run_sync(call_base.metadata.drop_all)
         await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(user_base.metadata.drop_all)
-        await conn.run_sync(cred_base.metadata.drop_all)
+        await conn.run_sync(Users_Base.metadata.drop_all)
 
-        await conn.run_sync(user_base.metadata.create_all)
-        await conn.run_sync(cred_base.metadata.create_all)
         await conn.run_sync(Base.metadata.create_all)
-        await conn.run_sync(call_base.metadata.create_all)
+        await conn.run_sync(Users_Base.metadata.create_all)
 
 
 async def get_db_session() -> AsyncSession:

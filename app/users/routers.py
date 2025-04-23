@@ -1,5 +1,8 @@
+import json
+
 from fastapi import APIRouter, Depends, status, HTTPException, FastAPI, Request, Cookie
 from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer, OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from typing import Annotated
 from datetime import datetime, timedelta, timezone
@@ -12,7 +15,7 @@ from sqlalchemy.future import select
 from fastapi.responses import JSONResponse, RedirectResponse
 from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
-from .schemas import User, UserInDB, Token, TokenData
+from .schemas import User, UserInDB, Token, TokenData, UserCreate
 from .models import User as UserModel, GoogleCredential
 from app.db.settings import local_db
 import requests
@@ -43,7 +46,7 @@ oauth.register(
     authorize_params=None,
     access_token_url="https://accounts.google.com/o/oauth2/token",
     access_token_params=None,
-    refresh_token_url=None,
+    refresh_token_url="https://accounts.google.com/o/oauth2/token",
     authorize_state=os.getenv("SECRET_KEY"),
     redirect_uri=os.getenv("REDIRECT_URL"),
 
@@ -91,7 +94,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)],
                            db: AsyncSession = Depends(local_db.get_db_session)):
-    print(token)
+    # print(token)
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -106,15 +109,17 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)],
         token_data = TokenData(username=username.username)
     except InvalidTokenError:
         raise credentials_exception
-    user = await get_user(db, username=token_data.username)
+    # user = await get_user(db, username=token_data.username)
+    user = await UserModel(username=token_data.username).get()
     if user is None:
         raise credentials_exception
     return user
 
 
 async def get_current_active_user(
-        current_user: Annotated[User, Depends(get_current_user)], db: AsyncSession = Depends(local_db.get_db_session)
-):
+        current_user: Annotated[UserModel, Depends(get_current_user)],
+        db: AsyncSession = Depends(local_db.get_db_session)
+) -> UserModel:
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
@@ -154,11 +159,29 @@ async def get_google_creds(
         user: User = Depends(get_current_active_user),
         db: AsyncSession = Depends(local_db.get_db_session)
 ):
-    print(user.dict())
+    # print(user.dict())
     creds = await GoogleCredential.getFromUser(user_id=user.google_id)
-    print(creds.to_dict())
-    if not creds or creds.expires_at < datetime.now():
-        raise HTTPException(403, "Reautenticación requerida con Google")
+    # print(creds.to_dict())
+    if not creds:
+        raise HTTPException(404, "Credenciales no encontradas para el usuario")
+
+    if creds.expires_at < datetime.now():
+        if not creds.refresh_token:
+            raise HTTPException(403, "Reautenticación requerida con Google (no refresh token)")
+
+        try:
+            token_data = await refresh_google_token(creds.refresh_token)
+            new_access_token = token_data["access_token"]
+            expires_in = token_data["expires_in"]
+            new_expiration = datetime.now() + timedelta(seconds=expires_in)
+
+            # Actualiza las credenciales en la base de datos
+            creds.access_token = new_access_token
+            creds.expires_at = new_expiration
+            await creds.update()
+        except Exception as e:
+            raise HTTPException(500, f"Error al refrescar el token: {e}")
+
     return creds
 
 
@@ -206,7 +229,7 @@ async def login(request: Request, db: AsyncSession = Depends(local_db.get_db_ses
     frontend_url = os.getenv("FRONTEND_URL")
     redirect_url = os.getenv("REDIRECT_URL")
     request.session["login_redirect"] = frontend_url
-    return await oauth.auth_demo.authorize_redirect(request, redirect_url, prompt="consent")
+    return await oauth.auth_demo.authorize_redirect(request, redirect_url, prompt="consent", access_type="offline")
 
 
 @router.get("/auth/google")
@@ -253,7 +276,7 @@ async def auth(request: Request, db: AsyncSession = Depends(local_db.get_db_sess
     response = RedirectResponse(redirect_url)
     print(f'Access Token: {access_token}')
     print(f'Access Token Google: ' + token['access_token'])
-    print(f'Token Google: ' + token)
+    print(f'Token Google: {token}')
     print(f'Time when expire: {datetime.now() + timedelta(seconds=token["expires_in"])}')
     print(f'Time Now: {datetime.now()}')
     print(f'Time expire ine: {timedelta(seconds=token["expires_in"])}')
@@ -282,15 +305,22 @@ async def auth(request: Request, db: AsyncSession = Depends(local_db.get_db_sess
 
 
 @router.get("/testDB")
+# async def test(
+#         creds: GoogleCredential = Depends(get_google_creds)):
+#     from googleapiclient.discovery import build
+#     from google.oauth2.credentials import Credentials
+#     creds2 = Credentials(token=creds.access_token)
+#     print(creds.to_dict())
+#     service = build('calendar', 'v3', credentials=creds2)
+#     print(service.calendarList().list().execute())
+#     return service.calendarList().list().execute()
 async def test(
-        creds: GoogleCredential = Depends(get_google_creds)):
-    from googleapiclient.discovery import build
-    from google.oauth2.credentials import Credentials
-    creds2 = Credentials(token=creds.access_token)
-    print(creds.to_dict())
-    service = build('calendar', 'v3', credentials=creds2)
-    print(service.calendarList().list().execute())
-    return service.calendarList().list().execute()
+        current_user: Annotated[UserModel, Depends(get_current_active_user)],
+        db: AsyncSession = Depends(local_db.get_db_session)
+):
+    # database = await current_user.get_user_database()
+    return JSONResponse(content=current_user.to_dict(), status_code=200)
+    # return current_user.toJSON()
 
 
 @router.get("/logout")
@@ -321,11 +351,32 @@ async def login_for_access_token(
 
 @router.get("/me", response_model=User)
 async def read_users_me(
-        current_user: Annotated[User, Depends(get_current_active_user)],
+        current_user: Annotated[UserModel, Depends(get_current_active_user)],
         db: AsyncSession = Depends(local_db.get_db_session)
 ):
-    return current_user
+    return JSONResponse(content=current_user.to_dict(), status_code=200)
+    # return current_user.toJSON()
 
+
+@router.patch("/me", response_model=User)
+async def update_user(current_user: Annotated[UserModel, Depends(get_current_active_user)], user: UserCreate,
+                      db: AsyncSession = Depends(local_db.get_db_session)):
+    try:
+        # config = user.config_user
+        # user.config_user = ''
+        current_user.username = user.username
+        current_user.email = user.email
+        current_user.avatar = user.avatar
+        current_user.config_user = user.config_user
+        # new_user = UserModel(id=current_user.id, username=user.username, email=user.email,
+        #                      avatar=user.avatar, config_user=user.config_user)
+        # new_user = UserModel(id=current_user.id, **user.dict())
+        # new_user.config_user = json.dumps(config)
+        await current_user.update()
+        return JSONResponse(content=current_user.to_dict(), status_code=200)
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
 # Old
 # @router.post("/calls/", response_model=CallResponse)
 # async def create_call(call: CallCreate, db: AsyncSession = Depends(get_db_session)):

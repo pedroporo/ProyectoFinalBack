@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel
 from typing import Optional
-
+import json
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -20,15 +20,25 @@ class TokenData(BaseModel):
 
 
 class User(BaseModel):
-    id: int | None = None
     username: str
-    email: str | None = None
-    role: str | None = None
-    avatar: str | None = None
-    google_id: str | None = None
-    config_user: Optional[str] = None
-    disabled: bool | None = None
+    email: Optional[str] | None = None
+    role: Optional[str] | None = None
+    avatar: Optional[str] | None = None
+    google_id: Optional[str] | None = None
+    config_user: Optional[object] | None = None
+    disabled: bool | None = False
+
+    class Config:
+        orm_mode = True
+
+
+class UserCreate(User):
+    pass
 
 
 class UserInDB(User):
     password: str | None = None
+    id: int | None = None
+
+    class Config:
+        orm_mode = True

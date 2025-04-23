@@ -7,6 +7,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from contextlib import asynccontextmanager
 from sshtunnel import SSHTunnelForwarder
 import asyncio
+from sqlalchemy_utils import database_exists, create_database
 
 load_dotenv()
 
@@ -36,11 +37,12 @@ class Database:
         self.engine = create_async_engine(self.DATABASE_URL, echo=False)
         self.async_session_factory = async_sessionmaker(bind=self.engine, expire_on_commit=False)
         self.BASE = BASE
+        if not database_exists(self.engine.url): create_database(self.engine.url)
 
     async def init_models(self):
         async with self.engine.begin() as conn:
             # await conn.run_sync(self.BASE.metadata.drop_all)
-            await conn.run_sync(self.BASE.metadata.create_all(checkfirst=True))
+            await conn.run_sync(self.BASE.metadata.create_all)
 
     async def get_db_session(self) -> AsyncSession:
         async with self.async_session_factory() as session:

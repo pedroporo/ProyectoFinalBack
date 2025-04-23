@@ -12,7 +12,8 @@ from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import update, delete
-
+from app.db.models import Database
+from app.db import Base as Models_Base
 # from app.db.session import get_db_session_class
 from app.db.settings import local_db
 
@@ -28,15 +29,49 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 raw_domain = os.getenv('DOMAIN', '')
 MYSQL_DATABASE = os.getenv('MYSQL_DATABASE')
 DOMAIN = re.sub(r'(^\w+:|^)\/\/|\/+$', '', raw_domain)  # Strip protocols and trailing slashes from DOMAIN
-
-template_config_user = json.loads(
+template_json_config = {
+    "database": {
+        'DB_USER': "default",
+        'DB_PASS': "default",
+        'DB_HOST': '0.0.0.0',
+        'DB_PORT': 3306,
+        'DATABASE_NAME': 'Chatbot_app'
+    },
+    "credentials": {
+        "TWILIO_ACCOUNT_SID": '...',
+        "TWILIO_AUTH_TOKEN": '...',
+        'TWILIO_NUMBER': '+34555555',
+        'TWILIO_SERVICE_ID': 'dfss'
+    },
+    "mail_settings": {
+        'MAIL_HOST': 'dfsf',
+        'MAIL_PORT': 465,
+        'MAIL_USERNAME': 'test@test.test',
+        'MAIL_PASSWORD': 'afdfsd',
+        'MAIL_RECIVERS': ["test@gmail.com", "test1@gmail.com"]
+    }
+}
+template_config_user = json.dumps(
     {
         "database": {
             'DB_USER': "default",
             'DB_PASS': "default",
             'DB_HOST': '0.0.0.0',
-            'DB_PORT': '3306',
+            'DB_PORT': 3306,
             'DATABASE_NAME': 'Chatbot_app'
+        },
+        "credentials": {
+            "TWILIO_ACCOUNT_SID": '...',
+            "TWILIO_AUTH_TOKEN": '...',
+            'TWILIO_NUMBER': '+34555555',
+            'TWILIO_SERVICE_ID': 'dfss'
+        },
+        "mail_settings": {
+            'MAIL_HOST': 'dfsf',
+            'MAIL_PORT': 465,
+            'MAIL_USERNAME': 'test@test.test',
+            'MAIL_PASSWORD': 'afdfsd',
+            'MAIL_RECIVERS': ["test@gmail.com", "test1@gmail.com"]
         }
     }
 )
@@ -50,9 +85,9 @@ class User(Base):
     email = Column(sqlalchemy.String(70), nullable=False, unique=True)
     password = Column(sqlalchemy.String(60), nullable=True)
     role = Column(sqlalchemy.String(20), default="user", server_default="user")
-    avatar = Column(sqlalchemy.Text, nullable=True)
+    avatar = Column(sqlalchemy.Text, default="https://picsum.photos/200.jpg", nullable=True)
     google_id = Column(sqlalchemy.String(100), nullable=True, unique=True)
-    config_user = Column(sqlalchemy.JSON, default=template_config_user, nullable=True)
+    config_user = Column(sqlalchemy.JSON, default=template_json_config, nullable=True)
     disabled = Column(sqlalchemy.Boolean, default=False, insert_default=False, server_default="0")
 
     def to_dict(self):
@@ -108,6 +143,20 @@ class User(Base):
         async with local_db.get_db_session_class() as s:
             result = await s.execute(select(User).where(User.google_id == self.google_id))
             return result.scalar()
+
+    async def get_user_database(self):
+        config = self.config_user
+        print(f'Config: {config["database"]}')
+        db = Database(
+            DB_USER=config["database"]["DB_USER"],
+            DB_PASS=config["database"]["DB_PASS"],
+            DB_HOST=config["database"]["DB_HOST"],
+            DB_PORT=config["database"]["DB_PORT"],
+            DATABASE_NAME=config["database"]["DATABASE_NAME"],
+            BASE=Models_Base
+        )
+        await db.init_models()  # Opcional: crea las tablas si no existen
+        return db
 
 
 class GoogleCredential(Base):

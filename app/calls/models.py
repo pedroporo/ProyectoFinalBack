@@ -14,8 +14,6 @@ from sqlalchemy.future import select
 from sqlalchemy import update, delete
 from datetime import datetime
 
-from app.db.session import get_db_session_class
-
 from app.db import Base
 
 # from app.db.session import Base
@@ -70,7 +68,7 @@ class Call(Base):
 
     async def update(self, db):
 
-        async with get_db_session_class() as s:
+        async with db.get_db_session_class() as s:
             mapped_values = {}
             for item in Call.__dict__.items():
                 field_name = item[0]
@@ -82,23 +80,23 @@ class Call(Base):
             await s.commit()
 
     async def delete(self, db):
-        async with get_db_session_class() as s:
+        async with db.get_db_session_class() as s:
             await s.execute(delete(Call).where(Call.id == self.id))
             await s.commit()
 
     async def create(self, db):
-        async with get_db_session_class() as s:
+        async with db.get_db_session_class() as s:
             s.add(self)
             await s.commit()
             await s.refresh(self)
 
     async def get(self, db):
-        async with get_db_session_class() as s:
+        async with db.get_db_session_class() as s:
             result = await s.execute(select(Call).where(Call.id == self.id))
             return result.scalar()
 
     async def getBySid(self, db):
-        async with get_db_session_class() as s:
+        async with db.get_db_session_class() as s:
             result = await s.execute(select(Call).where(Call.call_id == self.call_id))
             return result.scalar()
 
@@ -125,7 +123,7 @@ class Transcription(Base):
 
     async def update(self, db):
 
-        async with get_db_session_class() as s:
+        async with db.get_db_session_class() as s:
             mapped_values = {}
             for item in Transcription.__dict__.items():
                 field_name = item[0]
@@ -137,22 +135,22 @@ class Transcription(Base):
             await s.commit()
 
     async def delete(self, db):
-        async with get_db_session_class() as s:
+        async with db.get_db_session_class() as s:
             await s.execute(delete(Transcription).where(Transcription.id == self.id))
             await s.commit()
 
     async def create(self, db):
-        async with get_db_session_class() as s:
+        async with db.get_db_session_class() as s:
             s.add(self)
             await s.commit()
             await s.refresh(self)
 
     async def get(self, db):
-        async with get_db_session_class() as s:
+        async with db.get_db_session_class() as s:
             result = await s.execute(select(Transcription).where(Transcription.id == self.id))
             return result.scalar()
 
     async def getBySid(self, db):
-        async with get_db_session_class() as s:
+        async with db.get_db_session_class() as s:
             result = await s.execute(select(Transcription).where(Transcription.call_id == self.call_id))
             return result.scalar()

@@ -23,6 +23,8 @@ from authlib.integrations.starlette_client import OAuth
 from dotenv import load_dotenv
 import logging as logger
 
+from ..db.models import Database
+
 load_dotenv()
 
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
@@ -203,6 +205,31 @@ async def refresh_google_token(refresh_token: str):
         response.raise_for_status()
 
 
+async def get_user_db(current_user: User = Depends(get_current_active_user)):
+    """
+    Retorna la classe de la base de datos configurada
+    """
+    return await current_user.get_user_database()
+
+
+async def get_user_db_session(db: Database = Depends(get_user_db)):
+    """
+    Retorna la sesion normal de la base de datos configurada del usuario
+    """
+    return db.get_db_session()
+
+
+# from contextlib import asynccontextmanager
+#
+#
+# @asynccontextmanager
+async def get_user_db_session_class(db: Database = Depends(get_user_db)):
+    """
+    Retorna la sesion para las clases de la base de datos configurada del usuario
+    """
+    return db.get_db_session_class()
+
+
 # async def log_token(access_token, user_email, session_id):
 #     try:
 #         connection = mysql.connector.connect(host=host, database=database, user=user, password=password)
@@ -274,12 +301,12 @@ async def auth(request: Request, db: AsyncSession = Depends(local_db.get_db_sess
 
     redirect_url = request.session.pop("login_redirect", "")
     response = RedirectResponse(redirect_url)
-    print(f'Access Token: {access_token}')
-    print(f'Access Token Google: ' + token['access_token'])
-    print(f'Token Google: {token}')
-    print(f'Time when expire: {datetime.now() + timedelta(seconds=token["expires_in"])}')
-    print(f'Time Now: {datetime.now()}')
-    print(f'Time expire ine: {timedelta(seconds=token["expires_in"])}')
+    # print(f'Access Token: {access_token}')
+    # print(f'Access Token Google: ' + token['access_token'])
+    # print(f'Token Google: {token}')
+    # print(f'Time when expire: {datetime.now() + timedelta(seconds=token["expires_in"])}')
+    # print(f'Time Now: {datetime.now()}')
+    # print(f'Time expire ine: {timedelta(seconds=token["expires_in"])}')
     response.set_cookie(
         key="access_token",
         value=access_token,
@@ -366,8 +393,8 @@ async def update_user(current_user: Annotated[UserModel, Depends(get_current_act
         # user.config_user = ''
         current_user.username = user.username
         current_user.email = user.email
-        current_user.avatar = user.avatar
-        current_user.config_user = user.config_user
+        current_user.avatar = current_user.avatar if user.avatar == None else user.avatar
+        current_user.config_user = current_user.config_user if user.config_user == None else user.config_user
         # new_user = UserModel(id=current_user.id, username=user.username, email=user.email,
         #                      avatar=user.avatar, config_user=user.config_user)
         # new_user = UserModel(id=current_user.id, **user.dict())

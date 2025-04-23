@@ -7,6 +7,7 @@ import httpx
 from sqlalchemy import Column
 from sqlalchemy.future import select
 import sqlalchemy
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import Base
 from sqlalchemy.orm.attributes import InstrumentedAttribute
@@ -15,11 +16,19 @@ from sqlalchemy import update, delete
 from twilio.rest import Client
 from dotenv import load_dotenv
 import re
+from fastapi import APIRouter, Depends, status, HTTPException, Request, Cookie
 
+from app.db.models import Database
 # from websocket_server.server import Server
 # from websocket_server.sessionManager import SessionManager
 
-from app.db.session import get_db_session_class, get_db_session
+# from app.users.routers import get_user_db_session_class
+
+from app.users.routers import get_user_db_session_class as get_db_session_class, get_user_db_session_class
+
+# from app.users.routers import get_user_db
+from app.users.routers import get_user_db, get_current_active_user
+from app.users.models import User
 
 load_dotenv()
 # Configuration
@@ -31,6 +40,9 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 raw_domain = os.getenv('DOMAIN', '')
 DOMAIN = re.sub(r'(^\w+:|^)\/\/|\/+$', '', raw_domain)
 PORT = int(os.getenv('PORT', 8765))
+
+
+# get_db_session_class = get_user_db_session_class()
 
 
 class VoiceOptionsEnum(enum.Enum):
@@ -52,7 +64,7 @@ class Agent(Base):
     voice = Column(sqlalchemy.Enum(VoiceOptionsEnum), nullable=False, default=VoiceOptionsEnum.alloy,
                    server_default=VoiceOptionsEnum.alloy.value)
     descripcion = Column(sqlalchemy.String(300), nullable=True)
-    instrucciones = Column(sqlalchemy.String(65535), nullable=False)
+    instrucciones = Column(sqlalchemy.Text, nullable=False)
     empezar_ia = Column(sqlalchemy.Boolean, nullable=False, default=True)
     velozidadVoz = Column(sqlalchemy.Float, default=1)
     creatividadVoz = Column(sqlalchemy.Float, default=0.6)
@@ -60,9 +72,9 @@ class Agent(Base):
     callMaxDuration = Column(sqlalchemy.Integer)
 
     # calls= relationship("Call", back_populates="agent", cascade="all, delete-orphan")
-    async def update(self):
+    async def update(self, db: Database):
         # s = get_db_session()
-        async with get_db_session_class() as s:
+        async with db.get_db_session_class() as s:
             mapped_values = {}
             for item in Agent.__dict__.items():
                 field_name = item[0]
@@ -75,22 +87,23 @@ class Agent(Base):
             await s.execute(update(Agent).where(Agent.id == self.id).values(**mapped_values))
             await s.commit()
 
-    async def delete(self):
+    async def delete(self, db: Database):
         # s = get_db_session()
-        async with get_db_session_class() as s:
+        async with db.get_db_session_class() as s:
             await s.execute(delete(Agent).where(Agent.id == self.id))
             await s.commit()
 
-    async def create(self):
+    async def create(self, db: Database):
+        # async def create(self, db):
         # s = get_db_session()
-        async with get_db_session_class() as s:
+        async with db.get_db_session_class() as s:
             # await s.add(self)
             s.add(self)
             await s.commit()
             await s.refresh(self)
 
-    async def get(self):
-        async with get_db_session_class() as s:
+    async def get(self, db: Database):
+        async with db.get_db_session_class() as s:
             result = await s.execute(select(Agent).where(Agent.id == self.id))
             return result.scalar()
 
@@ -137,7 +150,7 @@ class Agent(Base):
             print(f"Error checking phone number: {e}")
             return False
 
-    async def make_call(self, db):
+    async def make_call(self, db: Database):
         # async def make_call(self,phone_number_to_call: str):
         """Make an outbound call."""
         # if not phone_number_to_call:
@@ -147,9 +160,11 @@ class Agent(Base):
         # db=get_db_session()
 
         # result = await db.execute(select(Call).where(Call.agent_id == self.id and Call.status == "ready"))
-
-        result = await db.execute(select(Call).where(sqlalchemy.and_(Call.agent_id == self.id, Call.status == "ready")))
-        numeros = result.scalars().all()
+        async with db.get_db_session_class() as s:
+            # print(s)
+            result = await s.execute(
+                select(Call).where(sqlalchemy.and_(Call.agent_id == self.id, Call.status == "ready")))
+            numeros = result.scalars().all()
         # print(numeros)
 
         # print(payload)
@@ -194,7 +209,7 @@ class Agent(Base):
 
                 )
             # Realiza la llamada
-            print('Empezando llamada')
+            # print('Empezando llamada')
             call = self.client.calls.create(
                 from_=PHONE_NUMBER_FROM,
                 to=phone_number_to_call.phone_number,
@@ -209,16 +224,16 @@ class Agent(Base):
 
             call_id = call.sid
             phone_number_to_call.call_id = call_id
-            await phone_number_to_call.update()
+            await phone_number_to_call.update(db)
             # await self.log_call_sid(call_id)
-            print(f"Llamada iniciada al número: {phone_number_to_call.phone_number}, SID: {call.sid}")
+            # print(f"Llamada iniciada al número: {phone_number_to_call.phone_number}, SID: {call.sid}")
 
             # Espera a que esta llamada termine antes de continuar con la siguiente
-            await self.esperar_a_que_finalice(call.sid, phone_number_to_call)
+            await self.esperar_a_que_finalice(call.sid, phone_number_to_call, db)
             await asyncio.sleep(5)  # Espera 5 segundos entre llamadas
         return {"message": f'Se han llamado a {len(numeros)} numeros telefonicos'}
 
-    async def esperar_a_que_finalice(self, call_sid, call_db):
+    async def esperar_a_que_finalice(self, call_sid, call_db, db):
         """Espera asincrónicamente a que termine una llamada"""
         # from ..calls.models import Call
         while True:
@@ -244,7 +259,7 @@ class Agent(Base):
                 call_db.call_date = llamada.date_created
                 call_db.call_duration = llamada.duration
                 call_db.call_json_twilio = f'{llamada.__dict__}'
-                await call_db.update()
+                await call_db.update(db)
                 if llamada.status == 'completed':
                     # await asyncio.sleep(5)
                     recordings = self.client.recordings.list(call_sid=llamada.sid, page_size=1)
@@ -277,7 +292,7 @@ class Agent(Base):
                     except Exception as e:
                         print(f"Error al crear la transcripción: {e}")
 
-                    await self.esperar_a_transcript(transcript_sid=transcript.sid, call_sid=llamada.sid)
+                    await self.esperar_a_transcript(transcript_sid=transcript.sid, call_sid=llamada.sid, db=db)
 
                     # print(transcriptions[0].sentences.list(redacted=False))
                     # recording_url = self.get_recording_url(llamada.sid)
@@ -341,7 +356,7 @@ class Agent(Base):
         os.remove("temp_audio.wav")
         return transcription
 
-    async def esperar_a_transcript(self, transcript_sid, call_sid):
+    async def esperar_a_transcript(self, transcript_sid, call_sid, db):
         while True:
             transcript = await asyncio.get_event_loop().run_in_executor(
                 None,
@@ -351,17 +366,17 @@ class Agent(Base):
             if transcript.status == 'completed':
                 texto = '\n'.join(f'{"IA" if x.media_channel == 2 else "Usuario"}: {str(x.transcript)}' for x in
                                   transcript.sentences.list(redacted=False))
-                await self.save_transcription(text=texto, call_sid=call_sid)
+                await self.save_transcription(text=texto, call_sid=call_sid, db=db)
                 transcript.delete()
                 print(f"Transcripción: {texto}")
                 break
             await asyncio.sleep(5)
 
-    async def save_transcription(self, text: str, call_sid):
+    async def save_transcription(self, text: str, call_sid, db):
 
         from app.calls.models import Transcription
         transcription = Transcription(
             call_id=call_sid,
             content=text
         )
-        await transcription.create()
+        await transcription.create(db)

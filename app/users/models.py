@@ -146,7 +146,7 @@ class User(Base):
 
     async def get_user_database(self):
         config = self.config_user
-        print(f'Config: {config["database"]}')
+        # print(f'Config: {config["database"]}')
         db = Database(
             DB_USER=config["database"]["DB_USER"],
             DB_PASS=config["database"]["DB_PASS"],
@@ -155,6 +155,7 @@ class User(Base):
             DATABASE_NAME=config["database"]["DATABASE_NAME"],
             BASE=Models_Base
         )
+        await db.init()  # Requerido: crea la base de datos si no existe
         await db.init_models()  # Opcional: crea las tablas si no existen
         return db
 

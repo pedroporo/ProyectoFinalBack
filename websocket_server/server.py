@@ -14,10 +14,6 @@ from authlib.integrations.starlette_client import OAuth
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 import re
-from app.agents.routers import router as agents_router
-from app.calls.routers import router as calls_router
-from app.users.routers import router as users_router
-# from app.users.auth import router as auth_router
 from app import router as api_router
 from websocket_server.functionHandeler import functions
 

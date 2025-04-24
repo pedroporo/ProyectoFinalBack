@@ -1,5 +1,4 @@
 import json
-import os
 from typing import Optional, List
 
 import requests
@@ -12,11 +11,6 @@ from websocket_server.schemas import FunctionHandler, FunctionSchema
 
 load_dotenv()
 
-MAIL_HOST = os.getenv('MAIL_HOST')
-MAIL_PORT = int(os.getenv('MAIL_PORT'))
-MAIL_USERNAME = os.getenv('MAIL_USERNAME')
-MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
-MAIL_RECIVERS = os.getenv('MAIL_RECIVERS')
 # import logging
 
 # logging.basicConfig(level=logging.DEBUG)
@@ -132,9 +126,11 @@ functions = FunctionHandlerArray()
 
 
 async def check_google_calendar(args, user):
+    # user = await User(google_id=user_gid).getByGId()
     creds = await get_google_creds(user=user)
-    # print(f'Google creds in fun: {creds}')
-    google_service = get_calendar_service(creds)
+    # print(f'Google creds in fun check: {creds.to_dict()}')
+    google_service = get_calendar_service(creds.access_token)
+    # argus = json.loads(args)
     events_result = google_service.events().list(
         calendarId='primary',
         timeMin=args['time_min'],
@@ -146,9 +142,11 @@ async def check_google_calendar(args, user):
 
 
 async def create_google_event(args, user):
+    # user = await User(google_id=user_gid).getByGId()
     creds = await get_google_creds(user=user)
-    # print(f'Google creds in fun: {creds}')
-    google_service = get_calendar_service(creds)
+    # print(f'Google creds in fun create: {creds.to_dict()}')
+    google_service = get_calendar_service(creds.access_token)
+    # argus = json.loads(args)
     try:
         event = {
             'summary': args['summary'],
@@ -157,7 +155,7 @@ async def create_google_event(args, user):
             'attendees': [{'email': args['email']}]
         }
         # print(f"Credenciales usadas: {creds[:15]}...")
-        # print(f"Intentando crear evento: {json.dumps(event, indent=2)}")
+        print(f"Intentando crear evento: {json.dumps(event, indent=2)}")
         return google_service.events().insert(
             calendarId='primary',
             body=event
@@ -169,12 +167,16 @@ async def create_google_event(args, user):
 async def send_email(args, user):
     # from app.users.models import User
     # user: User = await User(google_id=USER_GID).getByGId()
-
+    # print(f'User Gid: {user_gid}')
+    # user = await User(google_id=user_gid).getByGId()
+    # test = json.loads(args)
+    # print(f'Args email: {args}')
+    # print(f'User email: {user.to_dict()}')
     # print(f'Google creds in fun: {creds}')
     import smtplib
     from email.mime.text import MIMEText
     # smtpObj = smtplib.SMTP(host, port)
-    recivers = json.loads(user.config_user['mail_settings']['MAIL_RECIVERS'])
+    recivers = user.config_user['mail_settings']['MAIL_RECIVERS']
     mail_username = user.config_user['mail_settings']['MAIL_USERNAME']
     mail_password = user.config_user['mail_settings']['MAIL_PASSWORD']
     mail_port = user.config_user['mail_settings']['MAIL_PORT']

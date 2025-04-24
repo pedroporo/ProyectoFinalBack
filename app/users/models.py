@@ -160,7 +160,7 @@ class User(Base):
 class GoogleCredential(Base):
     __tablename__ = "google_credentials"
 
-    user_id = Column(sqlalchemy.String(70), primary_key=True)
+    user_id = Column(sqlalchemy.String(100), primary_key=True, index=True)
     access_token = Column(sqlalchemy.String(400), nullable=False)
     refresh_token = Column(sqlalchemy.String(400))
     expires_at = Column(sqlalchemy.DateTime, nullable=False)
@@ -205,11 +205,13 @@ class GoogleCredential(Base):
             return await self.get()
 
     async def get(self):
+        # print(f'Database1: {local_db.to_dict()} \n UserGID: {self.user_id}')
         async with local_db.get_db_session_class() as s:
             result = await s.execute(select(GoogleCredential).where(GoogleCredential.user_id == self.user_id))
             return result.scalar()
 
-    async def getFromUser(user_id):
+    async def getFromUser(self, user_id):
+        # print(f'DatabaseU: {local_db.to_dict()} \n UserGID: {user_id}')
         async with local_db.get_db_session_class() as s:
             result = await s.execute(select(GoogleCredential).where(GoogleCredential.user_id == user_id))
             return result.scalar()

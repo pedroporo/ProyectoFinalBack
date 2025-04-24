@@ -1,15 +1,12 @@
-from fastapi import HTTPException, status
-import os
-from dotenv import load_dotenv
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.declarative import declarative_base
-from contextlib import asynccontextmanager
-from sqlalchemy import text
-from sshtunnel import SSHTunnelForwarder
-import asyncio
-from sqlalchemy_utils import database_exists, create_database
 import json
+from contextlib import asynccontextmanager
+
+from dotenv import load_dotenv
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+
+# from sqlalchemy.pool import NullPool
 
 load_dotenv()
 
@@ -41,6 +38,7 @@ class Database:
         self.DB_PORT = DB_PORT
         self.DATABASE_NAME = DATABASE_NAME
         self.DATABASE_URL = f"mysql+asyncmy://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DATABASE_NAME}"
+        # self.engine = create_async_engine(self.DATABASE_URL, echo=False, pool_pre_ping=False, poolclass=NullPool)
         self.engine = create_async_engine(self.DATABASE_URL, echo=False)
         self.async_session_factory = async_sessionmaker(bind=self.engine, expire_on_commit=False)
         self.BASE = BASE
@@ -101,6 +99,7 @@ class Database:
             if not exists:
                 await conn.execute(
                     text(f"CREATE DATABASE {self.DATABASE_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
+            await conn.close()
         await engine.dispose()
         # print(database_exists(self.engine.url))
 

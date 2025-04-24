@@ -200,7 +200,7 @@ class Agent(Base):
                 "instrucciones": self.instrucciones.format(customer_name=phone_number_to_call.contact_name),
                 "creatividadVoz": self.creatividadVoz,
                 "googleCreds": self.googleCreds,
-                "user": self.user,
+                "user": self.user.toJSON(),
             }
             async with httpx.AsyncClient() as client:
                 response = await client.post(
@@ -212,7 +212,7 @@ class Agent(Base):
             # Realiza la llamada
             # print('Empezando llamada')
             call = self.client.calls.create(
-                from_=self.user.config_user['credentials']['PHONE_NUMBER_FROM'],
+                from_=self.user.config_user['credentials']['TWILIO_NUMBER'],
                 to=phone_number_to_call.phone_number,
                 twiml=outbound_twiml,
                 record=True,

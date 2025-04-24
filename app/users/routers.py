@@ -1,7 +1,7 @@
 import logging as logger
 import os
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Annotated
 
 import jwt
@@ -81,9 +81,9 @@ async def authenticate_user(db, username: str, password: str):
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = datetime.now() + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+        expire = datetime.now() + timedelta(minutes=15)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -153,11 +153,11 @@ async def log_user(user_id, user_email, user_name, user_pic, first_logged_in, la
 
 
 async def get_google_creds(
-        user: User = Depends(get_current_active_user),
+        user: UserModel = Depends(get_current_active_user),
         db: AsyncSession = Depends(local_db.get_db_session)
 ):
-    # print(user.dict())
-    creds = await GoogleCredential.getFromUser(user_id=user.google_id)
+    # print(user.google_id)
+    creds: GoogleCredential = await GoogleCredential().getFromUser(user_id=user.google_id)
     # print(creds.to_dict())
     if not creds:
         raise HTTPException(404, "Credenciales no encontradas para el usuario")

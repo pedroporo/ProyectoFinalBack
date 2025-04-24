@@ -9,6 +9,7 @@ from fastapi import WebSocket
 from fastapi.websockets import WebSocketDisconnect
 from twilio.rest import Client
 
+from app.users.models import User
 from .functionHandeler import functions
 
 # import logging
@@ -43,13 +44,14 @@ class SessionManager:
         self.CREATIVITY = CREATIVITY
         self.CALL_ID = None
         self.GOOGLE_CREDS = GOOGLE_CREDS
-        self.USER = USER
+        self.USER = User(**json.loads(USER))
         self.client = Client(self.USER.config_user['credentials']['TWILIO_ACCOUNT_SID'],
                              self.USER.config_user['credentials']['TWILIO_AUTH_TOKEN'])
         # print(f"Voice: {self.VOICE} Instructions: {self.SYSTEM_MESSAGE} Creativity: {self.CREATIVITY}")
 
     async def initialize_session(self, openai_ws):
         """Inicializa la sesión con OpenAI."""
+        print(f'Functions: {functions.to_dict()}')
         session_update = {
             "type": "session.update",
             "session": {
@@ -77,6 +79,7 @@ class SessionManager:
 
         try:
             args = json.loads(item['arguments'])
+            print(f'Args en handle: {args}')
         except json.JSONDecodeError:
             return json.dumps({
                 "error": "Invalid JSON arguments for function call."
@@ -91,7 +94,7 @@ class SessionManager:
             result = await fn_def.handler(args, self.USER)
             return result
         except Exception as err:
-            print("Error running function:", err)
+            print(f"Error running function {item['name']}:", err)
             return json.dumps({
                 "error": f"Error running function {item['name']}: {str(err)}"
             })

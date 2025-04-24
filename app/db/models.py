@@ -9,6 +9,7 @@ from sqlalchemy import text
 from sshtunnel import SSHTunnelForwarder
 import asyncio
 from sqlalchemy_utils import database_exists, create_database
+import json
 
 load_dotenv()
 
@@ -43,6 +44,21 @@ class Database:
         self.engine = create_async_engine(self.DATABASE_URL, echo=False)
         self.async_session_factory = async_sessionmaker(bind=self.engine, expire_on_commit=False)
         self.BASE = BASE
+
+    def to_dict(self):
+        """Convierte la instancia del modelo a un diccionario serializable"""
+        return {
+            'DB_USER': self.DB_USER,
+            'DB_PASS': self.DB_PASS,
+            'DB_HOST': self.DB_HOST,
+            'DB_PORT': self.DB_PORT,
+            'DATABASE_NAME': self.DATABASE_NAME,
+            'DATABASE_URL': self.DATABASE_URL,
+        }
+
+    def toJSON(self):
+
+        return json.dumps(self.to_dict(), indent=4, sort_keys=True, default=str)
 
     async def init_models(self):
         async with self.engine.begin() as conn:

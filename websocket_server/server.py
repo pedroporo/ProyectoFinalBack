@@ -16,6 +16,7 @@ from starlette.middleware.sessions import SessionMiddleware
 import re
 from app import router as api_router
 from websocket_server.functionHandeler import functions
+from app.db.middleware import DBMiddleware
 
 load_dotenv()
 
@@ -47,6 +48,7 @@ class Server:
             allow_headers=["*"],
             expose_headers=["*"]
         )
+        self.app.add_middleware(DBMiddleware)
         self.app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY"))
         # with open(f"./Profiles/{self.PROFILE_ID}.json", mode="r", encoding="utf8") as data:
         #    self.PROFILE_DATA=json.load(data)

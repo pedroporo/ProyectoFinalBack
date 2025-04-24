@@ -1,20 +1,18 @@
-import os
 import json
-import enum
-from sqlalchemy import Column, update
-from twilio.rest import Client
-from dotenv import load_dotenv
+import os
 import re
-import time
-import sqlalchemy
-# from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm.attributes import InstrumentedAttribute
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from sqlalchemy import update, delete
 from datetime import datetime
 
+import sqlalchemy
+from dotenv import load_dotenv
+from sqlalchemy import Column
+from sqlalchemy import update, delete
+from sqlalchemy.future import select
+# from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm.attributes import InstrumentedAttribute
+
 from app.db import Base
+from app.db.context import get_current_db
 
 # from app.db.session import Base
 load_dotenv()
@@ -66,8 +64,8 @@ class Call(Base):
 
         return json.dumps(self.to_dict(), indent=4, sort_keys=True, default=str)
 
-    async def update(self, db):
-
+    async def update(self):
+        db = get_current_db()
         async with db.get_db_session_class() as s:
             mapped_values = {}
             for item in Call.__dict__.items():
@@ -79,23 +77,27 @@ class Call(Base):
             await s.execute(update(Call).where(Call.id == self.id).values(**mapped_values))
             await s.commit()
 
-    async def delete(self, db):
+    async def delete(self):
+        db = get_current_db()
         async with db.get_db_session_class() as s:
             await s.execute(delete(Call).where(Call.id == self.id))
             await s.commit()
 
-    async def create(self, db):
+    async def create(self):
+        db = get_current_db()
         async with db.get_db_session_class() as s:
             s.add(self)
             await s.commit()
             await s.refresh(self)
 
-    async def get(self, db):
+    async def get(self):
+        db = get_current_db()
         async with db.get_db_session_class() as s:
             result = await s.execute(select(Call).where(Call.id == self.id))
             return result.scalar()
 
-    async def getBySid(self, db):
+    async def getBySid(self):
+        db = get_current_db()
         async with db.get_db_session_class() as s:
             result = await s.execute(select(Call).where(Call.call_id == self.call_id))
             return result.scalar()
@@ -121,8 +123,8 @@ class Transcription(Base):
 
         return json.dumps(self.to_dict(), indent=4)
 
-    async def update(self, db):
-
+    async def update(self):
+        db = get_current_db()
         async with db.get_db_session_class() as s:
             mapped_values = {}
             for item in Transcription.__dict__.items():
@@ -134,23 +136,27 @@ class Transcription(Base):
             await s.execute(update(Transcription).where(Transcription.id == self.id).values(**mapped_values))
             await s.commit()
 
-    async def delete(self, db):
+    async def delete(self):
+        db = get_current_db()
         async with db.get_db_session_class() as s:
             await s.execute(delete(Transcription).where(Transcription.id == self.id))
             await s.commit()
 
-    async def create(self, db):
+    async def create(self):
+        db = get_current_db()
         async with db.get_db_session_class() as s:
             s.add(self)
             await s.commit()
             await s.refresh(self)
 
-    async def get(self, db):
+    async def get(self):
+        db = get_current_db()
         async with db.get_db_session_class() as s:
             result = await s.execute(select(Transcription).where(Transcription.id == self.id))
             return result.scalar()
 
-    async def getBySid(self, db):
+    async def getBySid(self):
+        db = get_current_db()
         async with db.get_db_session_class() as s:
             result = await s.execute(select(Transcription).where(Transcription.call_id == self.call_id))
             return result.scalar()

@@ -33,7 +33,7 @@ template_json_config = {
     "database": {
         'DB_USER': "default",
         'DB_PASS': "default",
-        'DB_HOST': '0.0.0.0',
+        'DB_HOST': 'localhost',
         'DB_PORT': 3306,
         'DATABASE_NAME': 'Chatbot_app'
     },
@@ -56,7 +56,7 @@ template_config_user = json.dumps(
         "database": {
             'DB_USER': "default",
             'DB_PASS': "default",
-            'DB_HOST': '0.0.0.0',
+            'DB_HOST': 'localhost',
             'DB_PORT': 3306,
             'DATABASE_NAME': 'Chatbot_app'
         },
@@ -145,14 +145,13 @@ class User(Base):
             return result.scalar()
 
     async def get_user_database(self):
-        config = self.config_user
         # print(f'Config: {config["database"]}')
         db = Database(
-            DB_USER=config["database"]["DB_USER"],
-            DB_PASS=config["database"]["DB_PASS"],
-            DB_HOST=config["database"]["DB_HOST"],
-            DB_PORT=config["database"]["DB_PORT"],
-            DATABASE_NAME=config["database"]["DATABASE_NAME"],
+            DB_USER=self.config_user["database"]["DB_USER"],
+            DB_PASS=self.config_user["database"]["DB_PASS"],
+            DB_HOST=self.config_user["database"]["DB_HOST"],
+            DB_PORT=self.config_user["database"]["DB_PORT"],
+            DATABASE_NAME=self.config_user["database"]["DATABASE_NAME"],
             BASE=Models_Base
         )
         await db.init()  # Requerido: crea la base de datos si no existe

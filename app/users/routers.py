@@ -127,8 +127,8 @@ async def get_current_active_user(
     return current_user
 
 
-def validate_user_request(token: str = Cookie(None)):
-    session_details = get_current_user(token)
+async def validate_user_request(token: str = Cookie(None)):
+    session_details = await get_current_user(token)
 
     return session_details
 
@@ -216,7 +216,8 @@ async def get_user_db_session(db: Database = Depends(get_user_db)):
     """
     Retorna la sesion normal de la base de datos configurada del usuario
     """
-    return db.get_db_session()
+    async with db.get_db_session() as s:
+        return s
 
 
 # from contextlib import asynccontextmanager
@@ -227,7 +228,8 @@ async def get_user_db_session_class(db: Database = Depends(get_user_db)):
     """
     Retorna la sesion para las clases de la base de datos configurada del usuario
     """
-    return db.get_db_session_class()
+    async with db.get_db_session_class() as s:
+        return s
 
 
 # async def log_token(access_token, user_email, session_id):

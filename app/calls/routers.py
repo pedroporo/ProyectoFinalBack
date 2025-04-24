@@ -20,7 +20,7 @@ async def create_call(call: CallCreate, db: Database = Depends(get_user_db),
                       current_user: User = Depends(get_current_active_user)):
     try:
         new_call = Call(**call.dict())
-        await new_call.create(db)
+        await new_call.create()
         # db.add(new_agent)
         # await db.commit()
         # await db.refresh(new_agent)

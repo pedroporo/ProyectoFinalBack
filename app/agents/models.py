@@ -1,34 +1,29 @@
-import os
-import json
-import enum
 import asyncio
-from fastapi import Depends
-import httpx
-from sqlalchemy import Column
-from sqlalchemy.future import select
-import sqlalchemy
-from sqlalchemy.ext.asyncio import AsyncSession
+import enum
+import json
+import os
+import re
 
-from app.db import Base
-from sqlalchemy.orm.attributes import InstrumentedAttribute
+import httpx
+import sqlalchemy
+from dotenv import load_dotenv
+from sqlalchemy import Column
 from sqlalchemy import update, delete
+from sqlalchemy.future import select
+from sqlalchemy.orm.attributes import InstrumentedAttribute
 # from main import call_id
 from twilio.rest import Client
-from dotenv import load_dotenv
-import re
-from fastapi import APIRouter, Depends, status, HTTPException, Request, Cookie
 
+from app.db import Base
+from app.db.context import get_current_db
 from app.db.models import Database
+
 # from websocket_server.server import Server
 # from websocket_server.sessionManager import SessionManager
 
 # from app.users.routers import get_user_db_session_class
 
-from app.users.routers import get_user_db_session_class as get_db_session_class, get_user_db_session_class
-
 # from app.users.routers import get_user_db
-from app.users.routers import get_user_db, get_current_active_user
-from app.users.models import User
 
 load_dotenv()
 # Configuration
@@ -72,8 +67,9 @@ class Agent(Base):
     callMaxDuration = Column(sqlalchemy.Integer)
 
     # calls= relationship("Call", back_populates="agent", cascade="all, delete-orphan")
-    async def update(self, db: Database):
+    async def update(self):
         # s = get_db_session()
+        db = get_current_db()
         async with db.get_db_session_class() as s:
             mapped_values = {}
             for item in Agent.__dict__.items():
@@ -87,22 +83,25 @@ class Agent(Base):
             await s.execute(update(Agent).where(Agent.id == self.id).values(**mapped_values))
             await s.commit()
 
-    async def delete(self, db: Database):
+    async def delete(self):
         # s = get_db_session()
+        db = get_current_db()
         async with db.get_db_session_class() as s:
             await s.execute(delete(Agent).where(Agent.id == self.id))
             await s.commit()
 
-    async def create(self, db: Database):
+    async def create(self):
         # async def create(self, db):
         # s = get_db_session()
+        db = get_current_db()
         async with db.get_db_session_class() as s:
             # await s.add(self)
             s.add(self)
             await s.commit()
             await s.refresh(self)
 
-    async def get(self, db: Database):
+    async def get(self):
+        db = get_current_db()
         async with db.get_db_session_class() as s:
             result = await s.execute(select(Agent).where(Agent.id == self.id))
             return result.scalar()
@@ -224,16 +223,16 @@ class Agent(Base):
 
             call_id = call.sid
             phone_number_to_call.call_id = call_id
-            await phone_number_to_call.update(db)
+            await phone_number_to_call.update()
             # await self.log_call_sid(call_id)
             # print(f"Llamada iniciada al número: {phone_number_to_call.phone_number}, SID: {call.sid}")
 
             # Espera a que esta llamada termine antes de continuar con la siguiente
-            await self.esperar_a_que_finalice(call.sid, phone_number_to_call, db)
+            await self.esperar_a_que_finalice(call.sid, phone_number_to_call)
             await asyncio.sleep(5)  # Espera 5 segundos entre llamadas
         return {"message": f'Se han llamado a {len(numeros)} numeros telefonicos'}
 
-    async def esperar_a_que_finalice(self, call_sid, call_db, db):
+    async def esperar_a_que_finalice(self, call_sid, call_db):
         """Espera asincrónicamente a que termine una llamada"""
         # from ..calls.models import Call
         while True:
@@ -259,7 +258,7 @@ class Agent(Base):
                 call_db.call_date = llamada.date_created
                 call_db.call_duration = llamada.duration
                 call_db.call_json_twilio = f'{llamada.__dict__}'
-                await call_db.update(db)
+                await call_db.update()
                 if llamada.status == 'completed':
                     # await asyncio.sleep(5)
                     recordings = self.client.recordings.list(call_sid=llamada.sid, page_size=1)
@@ -292,7 +291,7 @@ class Agent(Base):
                     except Exception as e:
                         print(f"Error al crear la transcripción: {e}")
 
-                    await self.esperar_a_transcript(transcript_sid=transcript.sid, call_sid=llamada.sid, db=db)
+                    await self.esperar_a_transcript(transcript_sid=transcript.sid, call_sid=llamada.sid)
 
                     # print(transcriptions[0].sentences.list(redacted=False))
                     # recording_url = self.get_recording_url(llamada.sid)
@@ -356,7 +355,7 @@ class Agent(Base):
         os.remove("temp_audio.wav")
         return transcription
 
-    async def esperar_a_transcript(self, transcript_sid, call_sid, db):
+    async def esperar_a_transcript(self, transcript_sid, call_sid):
         while True:
             transcript = await asyncio.get_event_loop().run_in_executor(
                 None,
@@ -366,17 +365,17 @@ class Agent(Base):
             if transcript.status == 'completed':
                 texto = '\n'.join(f'{"IA" if x.media_channel == 2 else "Usuario"}: {str(x.transcript)}' for x in
                                   transcript.sentences.list(redacted=False))
-                await self.save_transcription(text=texto, call_sid=call_sid, db=db)
+                await self.save_transcription(text=texto, call_sid=call_sid)
                 transcript.delete()
                 print(f"Transcripción: {texto}")
                 break
             await asyncio.sleep(5)
 
-    async def save_transcription(self, text: str, call_sid, db):
+    async def save_transcription(self, text: str, call_sid):
 
         from app.calls.models import Transcription
         transcription = Transcription(
             call_id=call_sid,
             content=text
         )
-        await transcription.create(db)
+        await transcription.create()

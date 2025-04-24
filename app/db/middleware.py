@@ -19,7 +19,7 @@ class DBMiddleware(BaseHTTPMiddleware):
             if request.url.path in public_paths:
                 return await call_next(request)
             # print(f'Recuest: {await request.json()}')
-            # print(f'Recuest cookie: {request.cookies.get("access_token")}')
+            # print(f'Recuesta cookie: {request.cookies.get("access_token")}')
             user: User = await validate_user_request(token=request.cookies.get("access_token"))
             # print(f'User: {user.to_dict()}')
             if user:

@@ -1,28 +1,23 @@
-import json
-
-from fastapi import APIRouter, Depends, status, HTTPException, FastAPI, Request, Cookie
-from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
-from fastapi.security import HTTPBearer, OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from typing import Annotated
-from datetime import datetime, timedelta, timezone
-from jwt.exceptions import InvalidTokenError
+import logging as logger
 import os
 import uuid
-import traceback
+from datetime import datetime, timedelta, timezone
+from typing import Annotated
+
 import jwt
-from sqlalchemy.future import select
-from fastapi.responses import JSONResponse, RedirectResponse
-from passlib.context import CryptContext
-from sqlalchemy.ext.asyncio import AsyncSession
-from .schemas import User, UserInDB, Token, TokenData, UserCreate
-from .models import User as UserModel, GoogleCredential
-from app.db.settings import local_db
 import requests
 from authlib.integrations.starlette_client import OAuth
 from dotenv import load_dotenv
-import logging as logger
+from fastapi import APIRouter, Depends, status, HTTPException, Request, Cookie
+from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from jwt.exceptions import InvalidTokenError
+from passlib.context import CryptContext
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.settings import local_db
+from .models import User as UserModel, GoogleCredential
+from .schemas import User, UserInDB, Token, TokenData, UserCreate
 from ..db.models import Database
 
 load_dotenv()
@@ -136,12 +131,12 @@ async def validate_user_request(token: str = Cookie(None)):
 async def log_user(user_id, user_email, user_name, user_pic, first_logged_in, last_accessed):
     usuario = None
     try:
-        usuario = await UserModel(username=user_name).get()
+        usuario: UserModel = await UserModel(username=user_name).get()
         # print(f'Usuario get: {usuario.toJSON()}')
         if usuario != None:
             await UserModel(id=usuario.id, username=user_name, email=user_email, password=usuario.password,
                             role=usuario.role,
-                            avatar=user_pic, google_id=user_id).update()
+                            avatar=user_pic, google_id=user_id, config_user=usuario.config_user).update()
         else:
             new_user = UserModel(username=user_name, email=user_email, avatar=user_pic, google_id=user_id,
                                  disabled=False)

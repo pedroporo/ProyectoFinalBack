@@ -1,23 +1,20 @@
-import os
 import json
-import enum
-from sqlalchemy import Column, update
-from twilio.rest import Client
-from dotenv import load_dotenv
+import os
 import re
-import time
+
 import sqlalchemy
+from dotenv import load_dotenv
+from sqlalchemy import Column
+from sqlalchemy import update, delete
+from sqlalchemy.future import select
 # from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm.attributes import InstrumentedAttribute
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from sqlalchemy import update, delete
-from app.db.models import Database
+
 from app.db import Base as Models_Base
+from app.db import Users_Base as Base
+from app.db.models import Database
 # from app.db.session import get_db_session_class
 from app.db.settings import local_db
-
-from app.db import Users_Base as Base
 
 # from app.db.session import Base
 load_dotenv()
@@ -41,7 +38,8 @@ template_json_config = {
         "TWILIO_ACCOUNT_SID": '...',
         "TWILIO_AUTH_TOKEN": '...',
         'TWILIO_NUMBER': '+34555555',
-        'TWILIO_SERVICE_ID': 'dfss'
+        'TWILIO_SERVICE_ID': 'dfss',
+        'OPENAI_API_KEY': '...'
     },
     "mail_settings": {
         'MAIL_HOST': 'dfsf',

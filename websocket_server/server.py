@@ -1,22 +1,19 @@
 import os
-import json
+import re
 import time
 
-from fastapi.logger import logger
-
-from app.agents.schemas import AgentResponse
-from websocket_server.sessionManager import SessionManager
-from fastapi import FastAPI, WebSocket, Request, Form
-from fastapi.responses import JSONResponse
-from dotenv import load_dotenv
 import uvicorn
-from authlib.integrations.starlette_client import OAuth
+from dotenv import load_dotenv
+from fastapi import FastAPI, WebSocket, Request
+from fastapi.logger import logger
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
-import re
+
 from app import router as api_router
-from websocket_server.functionHandeler import functions
 from app.db.middleware import DBMiddleware
+from websocket_server.functionHandeler import functions
+from websocket_server.sessionManager import SessionManager
 
 load_dotenv()
 
@@ -53,7 +50,7 @@ class Server:
         # with open(f"./Profiles/{self.PROFILE_ID}.json", mode="r", encoding="utf8") as data:
         #    self.PROFILE_DATA=json.load(data)
         # self.session_manager = SessionManager(VOICE=self.PROFILE_DATA["VOICE"],SYSTEM_MESSAGE=self.PROFILE_DATA["INSTRUCCTIONS"],CREATIVITY=0.6)
-        self.session_manager = SessionManager(VOICE="alloy", SYSTEM_MESSAGE="Di hola", CREATIVITY=0.6)
+        self.session_manager: SessionManager = None
         # self.session_manager=SessionManager()
 
         self.PORT = PORT
@@ -77,7 +74,8 @@ class Server:
             # print(f"Session: {agent}")
             # self.session_manager=SessionManager(VOICE=agent.voice,SYSTEM_MESSAGE=agent.instrucciones,CREATIVITY=agent.creatividadVoz)
             self.session_manager = SessionManager(VOICE=agent['voice'], SYSTEM_MESSAGE=agent['instrucciones'],
-                                                  CREATIVITY=agent['creatividadVoz'], GOOGLE_CREDS=agent['googleCreds'])
+                                                  CREATIVITY=agent['creatividadVoz'], GOOGLE_CREDS=agent['googleCreds'],
+                                                  USER=agent['user'])
             return {"message": "La sesion a sido actualizada"}
 
         @self.app.middleware("http")

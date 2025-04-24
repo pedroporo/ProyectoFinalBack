@@ -1,12 +1,14 @@
-from dotenv import load_dotenv
-from datetime import datetime
-from fastapi.encoders import jsonable_encoder
-import os
-import requests
 import json
-from websocket_server.schemas import FunctionHandler, FunctionSchema
-from typing import Dict, Any, Callable, Optional, List
+import os
+from typing import Optional, List
+
+import requests
+from dotenv import load_dotenv
+from fastapi.encoders import jsonable_encoder
+
+from app.users.routers import get_google_creds
 from websocket_server.Services.Google import get_calendar_service
+from websocket_server.schemas import FunctionHandler, FunctionSchema
 
 load_dotenv()
 
@@ -129,7 +131,8 @@ functions = FunctionHandlerArray()
 # })
 
 
-async def check_google_calendar(args, creds):
+async def check_google_calendar(args, user):
+    creds = await get_google_creds(user=user)
     # print(f'Google creds in fun: {creds}')
     google_service = get_calendar_service(creds)
     events_result = google_service.events().list(
@@ -142,7 +145,8 @@ async def check_google_calendar(args, creds):
     return events_result.get('items', [])
 
 
-async def create_google_event(args, creds):
+async def create_google_event(args, user):
+    creds = await get_google_creds(user=user)
     # print(f'Google creds in fun: {creds}')
     google_service = get_calendar_service(creds)
     try:
@@ -162,20 +166,27 @@ async def create_google_event(args, creds):
         return {"error": f"Formato de fecha inválido, usar ISO 8601: {e}"}
 
 
-def send_email(args):
+async def send_email(args, user):
+    # from app.users.models import User
+    # user: User = await User(google_id=USER_GID).getByGId()
+
     # print(f'Google creds in fun: {creds}')
     import smtplib
     from email.mime.text import MIMEText
     # smtpObj = smtplib.SMTP(host, port)
-    recivers = json.loads(MAIL_RECIVERS)
+    recivers = json.loads(user.config_user['mail_settings']['MAIL_RECIVERS'])
+    mail_username = user.config_user['mail_settings']['MAIL_USERNAME']
+    mail_password = user.config_user['mail_settings']['MAIL_PASSWORD']
+    mail_port = user.config_user['mail_settings']['MAIL_PORT']
+    mail_host = user.config_user['mail_settings']['MAIL_HOST']
     try:
         msg = MIMEText(args['body'])
         msg['Subject'] = args['subject']
-        msg['From'] = MAIL_USERNAME
+        msg['From'] = mail_username
         msg['To'] = ', '.join(recivers)
-        with smtplib.SMTP_SSL(MAIL_HOST, MAIL_PORT) as smtp_server:
-            smtp_server.login(MAIL_USERNAME, MAIL_PASSWORD)
-            smtp_server.sendmail(MAIL_USERNAME, recivers, msg.as_string())
+        with smtplib.SMTP_SSL(mail_host, mail_port) as smtp_server:
+            smtp_server.login(mail_username, mail_password)
+            smtp_server.sendmail(mail_username, recivers, msg.as_string())
         return {"success": f"El email a sido enviado con exito"}
 
     except Exception as e:

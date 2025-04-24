@@ -124,8 +124,8 @@ class Agent(Base):
     def toJSON(self):
         return json.dumps(self.to_dict(), indent=4)
 
-    if not (TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and PHONE_NUMBER_FROM and OPENAI_API_KEY):
-        raise ValueError('Missing Twilio and/or OpenAI environment variables. Please set them in the .env file.')
+    # if not (TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and PHONE_NUMBER_FROM and OPENAI_API_KEY):
+    #     raise ValueError('Missing Twilio and/or OpenAI environment variables. Please set them in the .env file.')
 
     # Initialize Twilio client
 
@@ -185,7 +185,8 @@ class Agent(Base):
         # All of the rules of TCPA apply even if a call is made by AI.
         # Do your own diligence for compliance.
 
-        self.client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        self.client = Client(self.user.config_user['credentials']['TWILIO_ACCOUNT_SID'],
+                             self.user.config_user['credentials']['TWILIO_AUTH_TOKEN'])
         outbound_twiml = (
             f'<?xml version="1.0" encoding="UTF-8"?>'
             f'<Response><Connect><Stream url="wss://{DOMAIN}/media-stream" /> </Connect><Pause length="{self.silenceCloseCall}"/><Hangup/></Response>'
@@ -198,7 +199,8 @@ class Agent(Base):
                 "voice": self.voice.value,
                 "instrucciones": self.instrucciones.format(customer_name=phone_number_to_call.contact_name),
                 "creatividadVoz": self.creatividadVoz,
-                "googleCreds": self.googleCreds
+                "googleCreds": self.googleCreds,
+                "user": self.user,
             }
             async with httpx.AsyncClient() as client:
                 response = await client.post(
@@ -210,7 +212,7 @@ class Agent(Base):
             # Realiza la llamada
             # print('Empezando llamada')
             call = self.client.calls.create(
-                from_=PHONE_NUMBER_FROM,
+                from_=self.user.config_user['credentials']['PHONE_NUMBER_FROM'],
                 to=phone_number_to_call.phone_number,
                 twiml=outbound_twiml,
                 record=True,
@@ -367,7 +369,7 @@ class Agent(Base):
                                   transcript.sentences.list(redacted=False))
                 await self.save_transcription(text=texto, call_sid=call_sid)
                 transcript.delete()
-                print(f"Transcripción: {texto}")
+                # print(f"Transcripción: {texto}")
                 break
             await asyncio.sleep(5)
 

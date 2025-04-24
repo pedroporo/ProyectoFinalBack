@@ -1,9 +1,7 @@
 from contextvars import ContextVar
 
-from app.db.settings import local_db
-
 # Contexto para la base de datos del usuario
-user_db_context = ContextVar('user_db', default=local_db)
+user_db_context = ContextVar('user_db', default=None)
 
 
 def get_current_db():

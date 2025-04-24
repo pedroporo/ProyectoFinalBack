@@ -1,12 +1,14 @@
-import os
-import json
-import base64
 import asyncio
-from fastapi import WebSocket
-from fastapi.websockets import WebSocketDisconnect
+import base64
+import json
+import os
+
 import websockets
 from dotenv import load_dotenv
+from fastapi import WebSocket
+from fastapi.websockets import WebSocketDisconnect
 from twilio.rest import Client
+
 from .functionHandeler import functions
 
 # import logging
@@ -30,7 +32,7 @@ SHOW_TIMING_MATH = False
 
 
 class SessionManager:
-    def __init__(self, VOICE=None, SYSTEM_MESSAGE=None, GOOGLE_CREDS=None, CREATIVITY=0.6):
+    def __init__(self, VOICE=None, SYSTEM_MESSAGE=None, GOOGLE_CREDS=None, USER=None, CREATIVITY=0.6):
         self.stream_sid = None
         self.latest_media_timestamp = 0
         self.last_assistant_item = None
@@ -41,7 +43,9 @@ class SessionManager:
         self.CREATIVITY = CREATIVITY
         self.CALL_ID = None
         self.GOOGLE_CREDS = GOOGLE_CREDS
-        self.client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        self.USER = USER
+        self.client = Client(self.USER.config_user['credentials']['TWILIO_ACCOUNT_SID'],
+                             self.USER.config_user['credentials']['TWILIO_AUTH_TOKEN'])
         # print(f"Voice: {self.VOICE} Instructions: {self.SYSTEM_MESSAGE} Creativity: {self.CREATIVITY}")
 
     async def initialize_session(self, openai_ws):
@@ -59,7 +63,7 @@ class SessionManager:
                 "tools": functions.to_dict(),
             }
         }
-        print('Enviando actualización de sesión:', json.dumps(session_update))
+        # print('Enviando actualización de sesión:', json.dumps(session_update))
         await openai_ws.send(json.dumps(session_update))
         # La IA habla primero (comentalo si no quieres que eso pase)
         await self.send_initial_conversation_item(openai_ws)
@@ -84,7 +88,7 @@ class SessionManager:
             # result = await fn_def['handler'](args, self.GOOGLE_CREDS)
 
             # print(f'Google Creds: {self.GOOGLE_CREDS}')
-            result = await fn_def.handler(args, self.GOOGLE_CREDS)
+            result = await fn_def.handler(args, self.USER)
             return result
         except Exception as err:
             print("Error running function:", err)
@@ -116,13 +120,13 @@ class SessionManager:
 
     async def handle_media_stream(self, websocket: WebSocket):
         """Gestiona las conexiones WebSocket entre Twilio y OpenAI."""
-        print("Cliente conectado")
+        # print("Cliente conectado")
         await websocket.accept()
 
         async with websockets.connect(
                 'wss://api.openai.com/v1/realtime?model=gpt-4o-mini-realtime-preview',
                 additional_headers={
-                    "Authorization": f"Bearer {OPENAI_API_KEY}",
+                    "Authorization": f"Bearer {self.USER.config_user['credentials']['OPENAI_API_KEY']}",
                     "OpenAI-Beta": "realtime=v1"
                 }
         ) as openai_ws:
@@ -151,8 +155,8 @@ class SessionManager:
                 elif data['event'] == 'start':
                     self.stream_sid = data['start']['streamSid']
                     self.CALL_ID = data['start']['callSid']
-                    print(f"Stream iniciado: {self.stream_sid}")
-                    print(f"Stream callSid: {self.CALL_ID}")
+                    # print(f"Stream iniciado: {self.stream_sid}")
+                    # print(f"Stream callSid: {self.CALL_ID}")
                     # self.client.calls.get(self.CALL_ID)
                     self.response_start_timestamp_twilio = None
                     self.latest_media_timestamp = 0
@@ -206,7 +210,7 @@ class SessionManager:
                         print(f"Error processing audio data: {e}")
                 if response['type'] == 'response.function_call' or response[
                     'type'] == 'response.function_call_arguments.done':
-                    print(f'Intentando llamar funciones', response)
+                    # print(f'Intentando llamar funciones', response)
                     # print(f'Args: {response["arguments"]}')
                     # print(f'Function Id: {response["item_id"]}')
                     results = await self.handle_function_call(response)
@@ -227,9 +231,9 @@ class SessionManager:
                     await openai_ws.send(json.dumps({"type": "response.create"}))
 
                 if response['type'] == 'input_audio_buffer.speech_started':
-                    print("Speech started detected")
+                    # print("Speech started detected")
                     if self.last_assistant_item:
-                        print(f"Interrupting response with id: {self.last_assistant_item}")
+                        # print(f"Interrupting response with id: {self.last_assistant_item}")
                         await self.handle_speech_started_event(websocket, openai_ws)
 
         except Exception as e:
@@ -237,7 +241,7 @@ class SessionManager:
 
     async def handle_speech_started_event(self, websocket: WebSocket, openai_ws):
         """Handle interruption when the caller's speech starts."""
-        print("Handling speech started event.")
+        # print("Handling speech started event.")
         if self.mark_queue and self.response_start_timestamp_twilio is not None:
             elapsed_time = self.latest_media_timestamp - self.response_start_timestamp_twilio
             if SHOW_TIMING_MATH:

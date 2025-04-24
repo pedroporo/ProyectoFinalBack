@@ -13,6 +13,11 @@ from app.users.routers import validate_user_request
 class DBMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         try:
+            public_paths = ["/setSession", "/media-stream", "/tools", "/",
+                            "/api/users/login/google",
+                            "/api/users/auth/google", "/docs"]  # Añade aquí las rutas que no requieren auth
+            if request.url.path in public_paths:
+                return await call_next(request)
             # print(f'Recuest: {await request.json()}')
             # print(f'Recuest cookie: {request.cookies.get("access_token")}')
             user: User = await validate_user_request(token=request.cookies.get("access_token"))
@@ -26,11 +31,12 @@ class DBMiddleware(BaseHTTPMiddleware):
         except HTTPException as e:
             print(f"Error en HTTPException: {e}")
             set_current_db(local_db)
-            return
+            raise e
         except Exception as e:
             print(f"Error en DBMiddleware: {e}")
             # set_current_db(local_db)
             # raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error interno del servidor")
 
         response = await call_next(request)
+        # print(f'Respusta del DBMiddleWare: {response.}')
         return response

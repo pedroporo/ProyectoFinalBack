@@ -155,7 +155,7 @@ async def create_google_event(args, user):
             'attendees': [{'email': args['email']}]
         }
         # print(f"Credenciales usadas: {creds[:15]}...")
-        print(f"Intentando crear evento: {json.dumps(event, indent=2)}")
+        # print(f"Intentando crear evento: {json.dumps(event, indent=2)}")
         return google_service.events().insert(
             calendarId='primary',
             body=event

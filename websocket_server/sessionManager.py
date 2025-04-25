@@ -79,6 +79,7 @@ class SessionManager:
 
         try:
             args = json.loads(item['arguments'])
+            args['call_id'] = self.CALL_ID
             print(f'Args en handle: {args}')
         except json.JSONDecodeError:
             return json.dumps({

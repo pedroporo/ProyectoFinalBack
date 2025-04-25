@@ -4,6 +4,7 @@ from typing import Optional, List
 import requests
 from dotenv import load_dotenv
 from fastapi.encoders import jsonable_encoder
+from twilio.rest import Client
 
 from app.users.routers import get_google_creds
 from websocket_server.Services.Google import get_calendar_service
@@ -204,17 +205,28 @@ async def get_weather(args):
     return json.dumps({"temp": current_temp})
 
 
+async def stop_call(args, user):
+    client = Client(user.config_user['credentials']['TWILIO_ACCOUNT_SID'],
+                    user.config_user['credentials']['TWILIO_AUTH_TOKEN'])
+    client.calls(args['call_id']).update(
+        status="completed"
+    )
+    return json.dumps({"success": f"La llamada a sido finalizada correctamente"})
+
+
 functions.append(FunctionHandler(
     schema=FunctionSchema(
         name="create_google_event",
-        description="Crea un evento en el calendario",
+        # description="Crea un evento en el calendario de Google con los detalles proporcionados (título, fecha/hora de inicio y fin, correo del cliente). Utilizar solo si el cliente ha confirmado que desea agendar una reunión.",
+        description="Crea un evento en el calendario de Google. Antes de crear el evento, verifica con el cliente que la dirección de correo electrónico proporcionada sea correcta. Una vez confirmado, crea el evento con los detalles proporcionados (título, fecha/hora de inicio y fin, correo del cliente). Usar solo después de la confirmación del cliente.",
         parameters={
             "type": "object",
             "properties": {
                 "summary": {"type": "string"},
                 "start": {"type": "string", "format": "date-time"},
                 "end": {"type": "string", "format": "date-time"},
-                "email": {"type": "string"}
+                "email": {"type": "string",
+                          "description": "Este es el correo electronico del cliente, debes confirmar que sea correcto."}
             },
             "required": ["summary", "start", "end", "email"],
             "additionalProperties": False,
@@ -225,7 +237,7 @@ functions.append(FunctionHandler(
 functions.append(FunctionHandler(
     schema=FunctionSchema(
         name="check_google_calendar",
-        description="Verifica disponibilidad en el calendario importante hacer esto antes de crear un nuevo evento",
+        description="Verifica disponibilidad en el calendario antes de crear un nuevo evento. Debe usarse siempre antes de intentar agendar una reunión para asegurar que no haya conflictos de horario.",
         parameters={
             "type": "object",
             "properties": {
@@ -242,7 +254,7 @@ functions.append(FunctionHandler(
 functions.append(FunctionHandler(
     schema=FunctionSchema(
         name="send_email",
-        description="Envia un email a hugo con el correo del cliente si esta interesado en que lo contactemos y si se puede se envia algo de contexto de la conversacion",
+        description="Envía un correo electrónico de confirmación. Si la reunión se agendó, notifica al encargado que la cita está confirmada e incluye los detalles (fecha, hora, enlace, etc.). Si el cliente no quiere agendar reunión pero desea ser contactado, envía un correo informando al encargado que se le contactará pronto y, si es posible, incluye información relevante de la conversación.",
         parameters={
             "type": "object",
             "properties": {
@@ -259,4 +271,19 @@ functions.append(FunctionHandler(
         }
     ),
     handler=send_email
+))
+functions.append(FunctionHandler(
+    schema=FunctionSchema(
+        name="stop_call",
+        description="Finaliza una llamada activa automáticamente cuando se detecta que la conversación ha terminado (por ejemplo, si el usuario dice 'adiós', indica que no necesita más ayuda, o si no hay interacción por ninguna de las partes durante al menos 15 segundos). Esta función cuelga la llamada de forma segura y devuelve una confirmación de que la llamada ha sido finalizada correctamente.",
+        parameters={
+            "type": "object",
+            "properties": {
+            },
+            "required": [
+            ],
+            "additionalProperties": False,
+        }
+    ),
+    handler=stop_call
 ))

@@ -15,7 +15,8 @@ class DBMiddleware(BaseHTTPMiddleware):
         try:
             public_paths = ["/setSession", "/media-stream", "/tools", "/",
                             "/api/users/login/google",
-                            "/api/users/auth/google", "/docs"]  # Añade aquí las rutas que no requieren auth
+                            "/api/users/auth/google", "/docs",
+                            "/openapi.json"]  # Añade aquí las rutas que no requieren auth
             if request.url.path in public_paths:
                 return await call_next(request)
             # print(f'Recuest: {await request.json()}')

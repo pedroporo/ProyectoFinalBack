@@ -167,7 +167,7 @@ async def create_google_event(args, user):
 async def send_email(args, user):
     # from app.users.models import User
     # user: User = await User(google_id=USER_GID).getByGId()
-    # print(f'User Gid: {user_gid}')
+    # print(f'Usera Gid: {user_gid}')
     # user = await User(google_id=user_gid).getByGId()
     # test = json.loads(args)
     # print(f'Args email: {args}')

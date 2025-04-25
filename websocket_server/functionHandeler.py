@@ -217,8 +217,8 @@ async def stop_call(args, user):
 functions.append(FunctionHandler(
     schema=FunctionSchema(
         name="create_google_event",
-        # description="Crea un evento en el calendario de Google con los detalles proporcionados (título, fecha/hora de inicio y fin, correo del cliente). Utilizar solo si el cliente ha confirmado que desea agendar una reunión.",
-        description="Crea un evento en el calendario de Google. Antes de crear el evento, verifica con el cliente que la dirección de correo electrónico proporcionada sea correcta. Una vez confirmado, crea el evento con los detalles proporcionados (título, fecha/hora de inicio y fin, correo del cliente). Usar solo después de la confirmación del cliente.",
+        description="Crea un evento en el calendario de Google con los detalles proporcionados (título, fecha/hora de inicio y fin, correo del cliente). Utilizar solo si el cliente ha confirmado que desea agendar una reunión.",
+        # description="Crea un evento en el calendario de Google. Antes de crear el evento, verifica con el cliente que la dirección de correo electrónico proporcionada sea correcta. Una vez confirmado, crea el evento con los detalles proporcionados (título, fecha/hora de inicio y fin, correo del cliente). Usar solo después de la confirmación del cliente.",
         parameters={
             "type": "object",
             "properties": {

@@ -137,6 +137,11 @@ class User(Base):
             result = await s.execute(select(User).where(User.username == self.username))
             return result.scalar()
 
+    async def getByGmail(self):
+        async with local_db.get_db_session_class() as s:
+            result = await s.execute(select(User).where(User.email == self.email))
+            return result.scalar()
+
     async def getByGId(self):
         async with local_db.get_db_session_class() as s:
             result = await s.execute(select(User).where(User.google_id == self.google_id))

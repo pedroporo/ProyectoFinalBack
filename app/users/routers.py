@@ -1,8 +1,10 @@
 import logging as logger
 import os
+import re
 import uuid
 from datetime import datetime, timedelta
 from typing import Annotated
+from zoneinfo import ZoneInfo
 
 import jwt
 import requests
@@ -69,8 +71,13 @@ async def get_user(db, username: str):
     return None
 
 
-async def authenticate_user(db, username: str, password: str):
-    user = await get_user(db, username)
+async def authenticate_user(username: str, password: str):
+    # user = await get_user(db, username)
+    if re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', username):
+        user = await UserModel(email=username).getByGmail()
+    else:
+        user = await UserModel(username=username).get()
+    print(f'User atuh: {user}')
     if not user:
         return False
     if not verify_password(password, user.password):
@@ -81,9 +88,9 @@ async def authenticate_user(db, username: str, password: str):
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.now() + expires_delta
+        expire = datetime.now(ZoneInfo("Europe/Madrid")) + expires_delta
     else:
-        expire = datetime.now() + timedelta(minutes=15)
+        expire = datetime.now(ZoneInfo("Europe/Madrid")) + timedelta(days=30)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -100,7 +107,9 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)],
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         # username = payload.get("sub")
-        username = await UserModel(google_id=payload.get("sub")).getByGId()
+        print(f'Get current user email: {payload.get("email")}')
+        username: UserModel = await UserModel(email=payload.get("email")).getByGmail()
+        print(f'User: {username}')
         if username is None:
             raise credentials_exception
         token_data = TokenData(username=username.username)
@@ -161,20 +170,17 @@ async def get_google_creds(
     # print(creds.to_dict())
     if not creds:
         raise HTTPException(404, "Credenciales no encontradas para el usuario")
-
-    if creds.expires_at < datetime.now():
+    margen_de_seguridad = timedelta(minutes=5)
+    if creds.expires_at < datetime.now(ZoneInfo("Europe/Madrid")) + margen_de_seguridad:
         if not creds.refresh_token:
+            # response = RedirectResponse(f'{os.getenv("REDIRECT_URL")}/api/users/login/google')
+            # return response
             raise HTTPException(403, "Reautenticación requerida con Google (no refresh token)")
-
         try:
+            # print('Refrescando token')
             token_data = await refresh_google_token(creds.refresh_token)
-            new_access_token = token_data["access_token"]
-            expires_in = token_data["expires_in"]
-            new_expiration = datetime.now() + timedelta(seconds=expires_in)
-
-            # Actualiza las credenciales en la base de datos
-            creds.access_token = new_access_token
-            creds.expires_at = new_expiration
+            creds.access_token = token_data["access_token"]
+            creds.expires_at = datetime.now(ZoneInfo("Europe/Madrid")) + timedelta(seconds=token_data["expires_in"])
             await creds.update()
         except Exception as e:
             raise HTTPException(500, f"Error al refrescar el token: {e}")
@@ -276,8 +282,8 @@ async def auth(request: Request, db: AsyncSession = Depends(local_db.get_db_sess
     user_id = user.get("sub")
     iss = user.get("iss")
     user_email = user.get("email")
-    first_logged_in = datetime.now()
-    last_accessed = datetime.now()
+    first_logged_in = datetime.now(ZoneInfo("Europe/Madrid"))
+    last_accessed = datetime.now(ZoneInfo("Europe/Madrid"))
 
     user_name = user_info.get("name")
     user_pic = user_info.get("picture")
@@ -298,12 +304,13 @@ async def auth(request: Request, db: AsyncSession = Depends(local_db.get_db_sess
 
     redirect_url = request.session.pop("login_redirect", "")
     response = RedirectResponse(redirect_url)
-    # print(f'Access Token: {access_token}')
-    # print(f'Access Token Google: ' + token['access_token'])
-    # print(f'Token Google: {token}')
-    # print(f'Time when expire: {datetime.now() + timedelta(seconds=token["expires_in"])}')
-    # print(f'Time Now: {datetime.now()}')
-    # print(f'Time expire ine: {timedelta(seconds=token["expires_in"])}')
+    expires_at = datetime.now(ZoneInfo("Europe/Madrid")) + timedelta(seconds=token["expires_in"])
+    print(f'Access Token: {access_token}')
+    print(f'Access Token Google: ' + token['access_token'])
+    print(f'Token Google: {token}')
+    print(f'Time when expire: {expires_at}')
+    print(f'Time Now: {datetime.now(ZoneInfo("Europe/Madrid"))}')
+    print(f'Time expire in: {timedelta(seconds=token["expires_in"])}')
     response.set_cookie(
         key="access_token",
         value=access_token,
@@ -316,14 +323,14 @@ async def auth(request: Request, db: AsyncSession = Depends(local_db.get_db_sess
             user_id=user_id,
             access_token=token['access_token'],
             refresh_token=token.get('refresh_token'),
-            expires_at=datetime.now() + timedelta(seconds=token['expires_in'])
+            expires_at=expires_at
         ).update()
     else:
         await GoogleCredential(
             user_id=user_id,
             access_token=token['access_token'],
             refresh_token=token.get('refresh_token'),
-            expires_at=datetime.now() + timedelta(seconds=token['expires_in'])
+            expires_at=expires_at
         ).create()
     return response
 
@@ -359,18 +366,42 @@ async def logout(request: Request):
 async def login_for_access_token(
         form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: AsyncSession = Depends(local_db.get_db_session)
 ) -> Token:
-    user = await authenticate_user(db, form_data.username, form_data.password)
+    user: UserModel = await authenticate_user(form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_expires = timedelta(days=30)
     access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
+        data={"sub": user.username, "email": user.email}, expires_delta=access_token_expires
     )
     return Token(access_token=access_token, token_type="bearer")
+
+
+@router.post("/register", tags=["Login"])
+async def register(user: UserCreate):
+    print(user)
+    if (usuario := await UserModel(username=user.username).get()):
+        return JSONResponse(content={"message": "User alredy exists."}, status_code=409)
+    new_user: UserModel = await UserModel(username=user.username, password=get_password_hash(user.password),
+                                          email=user.email).create()
+    access_token_expires = timedelta(days=30)
+    access_token = create_access_token(
+        data={"sub": new_user.username, "email": new_user.email}, expires_delta=access_token_expires
+    )
+    token = Token(access_token=access_token, token_type="bearer")
+    print(f'Token: {token}')
+    response = JSONResponse(content=token.dict(), status_code=201)
+    response.set_cookie(
+        key="access_token",
+        value=token.access_token,
+        httponly=True,
+        secure=True,  # Ensure you're using HTTPS
+        samesite="strict",  # Set the SameSite attribute to None
+    )
+    return response
 
 
 @router.get("/me", response_model=User)
@@ -401,6 +432,36 @@ async def update_user(current_user: Annotated[UserModel, Depends(get_current_act
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/force-refresh-google-token")
+async def force_refresh_google_token(
+        current_user: Annotated[UserModel, Depends(get_current_active_user)]
+):
+    print('Entro en la funcion')
+    creds: GoogleCredential = await GoogleCredential().getFromUser(user_id=current_user.google_id)
+    if not creds:
+        raise HTTPException(404, "Credenciales de Google no encontradas para el usuario.")
+
+    if not creds.refresh_token:
+        raise HTTPException(403, "No hay refresh_token guardado. Reautenticación requerida.")
+
+    try:
+        token_data = await refresh_google_token(creds.refresh_token)
+        new_access_token = token_data["access_token"]
+        expires_in = token_data["expires_in"]
+        new_expiration = datetime.now(ZoneInfo("Europe/Madrid")) + timedelta(seconds=expires_in)
+
+        creds.access_token = new_access_token
+        creds.expires_at = new_expiration
+        await creds.update()
+        return {
+            "message": "Token refrescado correctamente",
+            "access_token": new_access_token,
+            "expires_at": new_expiration
+        }
+    except Exception as e:
+        raise HTTPException(500, f"Error al refrescar el token: {e}")
 # Old
 # @router.post("/calls/", response_model=CallResponse)
 # async def create_call(call: CallCreate, db: AsyncSession = Depends(get_db_session)):

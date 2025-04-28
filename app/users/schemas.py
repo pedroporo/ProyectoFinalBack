@@ -1,18 +1,14 @@
-from datetime import datetime
-
-from pydantic import BaseModel
 from typing import Optional
-import json
-from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 
 
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+    class Config:
+        orm_mode = True
 
 
 class TokenData(BaseModel):
@@ -32,7 +28,10 @@ class User(BaseModel):
         orm_mode = True
 
 
-class UserCreate(User):
+class UserCreate(BaseModel):
+    username: str
+    email: Optional[str] | None = None
+    password: str | None = None
     pass
 
 

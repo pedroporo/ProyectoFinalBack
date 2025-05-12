@@ -2,7 +2,7 @@ import json
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from sqlalchemy import text
+from sqlalchemy import text, NullPool
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
@@ -38,9 +38,12 @@ class Database:
         self.DB_PORT = DB_PORT
         self.DATABASE_NAME = DATABASE_NAME
         self.DATABASE_URL = f"mysql+asyncmy://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DATABASE_NAME}"
-        # self.engine = create_async_engine(self.DATABASE_URL, echo=False, pool_pre_ping=False, poolclass=NullPool)
-        self.engine = create_async_engine(self.DATABASE_URL, echo=False)
+        #self.engine = create_async_engine(self.DATABASE_URL, echo=False, pool_pre_ping=True, pool_recycle=3600,poolclass=NullPool, pool_reset_on_return=None, isolation_level="AUTOCOMMIT")
+        self.engine = create_async_engine(self.DATABASE_URL, echo=False, pool_pre_ping=True,poolclass=NullPool)
+        #self.engine = None
+        # self.engine = create_async_engine(self.DATABASE_URL, echo=True)
         self.async_session_factory = async_sessionmaker(bind=self.engine, expire_on_commit=False)
+        #self.async_session_factory = None
         self.BASE = BASE
 
     def to_dict(self):
@@ -60,6 +63,9 @@ class Database:
 
     async def init_models(self):
         async with self.engine.begin() as conn:
+            #if self.DATABASE_NAME != 'fastapi_app' :
+            #    await conn.run_sync(self.BASE.metadata.drop_all)
+
             # await conn.run_sync(self.BASE.metadata.drop_all)
             await conn.run_sync(self.BASE.metadata.create_all)
 
@@ -105,5 +111,5 @@ class Database:
 
     async def init(self):
         await self.ensure_database_exists()
-        # self.engine = create_async_engine(self.DATABASE_URL, echo=False)
-        # self.async_session_factory = async_sessionmaker(bind=self.engine, expire_on_commit=False)
+        #self.engine = create_async_engine(self.DATABASE_URL, echo=False, pool_pre_ping=True,poolclass=NullPool)
+        #self.async_session_factory = async_sessionmaker(bind=self.engine, expire_on_commit=False)

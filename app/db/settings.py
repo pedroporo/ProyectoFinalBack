@@ -19,7 +19,7 @@ DB_PORT = os.getenv('DB_PORT')
 
 local_db = Database(DATABASE_NAME=DATABASE_NAME, DB_USER=DB_USER, DB_PASS=DB_PASS, DB_HOST=DB_HOST, DB_PORT=DB_PORT,
                     BASE=Users_Base)
-# asyncio.run(local_db.init_models())
+#asyncio.run(local_db.init())
 # print("¡Tablas creadas exitosamente!")
 # ssh_tunnel= SSHTunnelForwarder(
 #     os.getenv('SERVER_IP'),

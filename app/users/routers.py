@@ -30,7 +30,7 @@ GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 router = APIRouter(prefix="/users", tags=["Users"])
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 SECRET_KEY = os.getenv('SECRET_KEY')
 ALGORITHM = "HS256"
@@ -63,21 +63,24 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 
-async def get_user(db, username: str):
+async def get_user(username: str):
     # result = await db.execute(select(User).where(User.username == username))
-    user = await UserModel(username=username).get()
-    if user:
-        return UserInDB(**user.to_dict())
-    return None
-
-
-async def authenticate_user(username: str, password: str):
-    # user = await get_user(db, username)
     if re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', username):
         user = await UserModel(email=username).getByGmail()
     else:
         user = await UserModel(username=username).get()
-    print(f'User atuh: {user}')
+    if user:
+        return user
+    return None
+
+
+async def authenticate_user(username: str, password: str):
+    user = await get_user(username)
+    #if re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', username):
+    #    user = await UserModel(email=username).getByGmail()
+    #else:
+    #    user = await UserModel(username=username).get()
+    #print(f'User atuh: {user}')
     if not user:
         return False
     if not verify_password(password, user.password):
@@ -98,7 +101,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)],
                            db: AsyncSession = Depends(local_db.get_db_session)):
-    # print(token)
+    #print(token)
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -107,16 +110,18 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)],
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         # username = payload.get("sub")
-        print(f'Get current user email: {payload.get("email")}')
-        username: UserModel = await UserModel(email=payload.get("email")).getByGmail()
-        print(f'User: {username}')
+        #print(f'Get current user email: {payload.get("email")}')
+        #username: UserModel = await UserModel(email=payload.get("email")).getByGmail()
+        username: UserModel = await get_user(payload.get("email"))
+        #print(f'User: {username.to_dict()}')
         if username is None:
             raise credentials_exception
         token_data = TokenData(username=username.username)
     except InvalidTokenError:
         raise credentials_exception
     # user = await get_user(db, username=token_data.username)
-    user = await UserModel(username=token_data.username).get()
+    #user = await UserModel(username=token_data.username).get()
+    user=await get_user(token_data.username)
     if user is None:
         raise credentials_exception
     return user
@@ -132,9 +137,14 @@ async def get_current_active_user(
 
 
 async def validate_user_request(token: str = Cookie(None)):
-    session_details = await get_current_user(token)
+    try:
 
-    return session_details
+        session_details = await get_current_user(token)
+        #print(f'Session details: {session_details}')
+        return session_details
+    except Exception as e:
+        print("Error validando el usuario: ", e)
+        raise e
 
 
 async def log_user(user_id, user_email, user_name, user_pic, first_logged_in, last_accessed):
@@ -314,9 +324,9 @@ async def auth(request: Request, db: AsyncSession = Depends(local_db.get_db_sess
     response.set_cookie(
         key="access_token",
         value=access_token,
-        httponly=True,
-        secure=True,  # Ensure you're using HTTPS
-        samesite="strict",  # Set the SameSite attribute to None
+        httponly=False, #Impedir al codigo de js acceder a la cookie ej :Document.cookie
+        secure=False,  # Ensure you're using HTTPS
+        samesite="lax",  # Set the SameSite attribute to None
     )
     if await GoogleCredential(user_id=user_id).get():
         await GoogleCredential(
@@ -364,9 +374,9 @@ async def logout(request: Request):
 
 @router.post("/login", tags=["Login"])
 async def login_for_access_token(
-        form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: AsyncSession = Depends(local_db.get_db_session)
+        userLo: UserCreate, db: AsyncSession = Depends(local_db.get_db_session)
 ) -> Token:
-    user: UserModel = await authenticate_user(form_data.username, form_data.password)
+    user: UserModel = await authenticate_user(userLo.username, userLo.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -382,8 +392,9 @@ async def login_for_access_token(
 
 @router.post("/register", tags=["Login"])
 async def register(user: UserCreate):
-    print(user)
-    if (usuario := await UserModel(username=user.username).get()):
+    #print(user)await get_user(token_data.username)
+    #if (usuario := await UserModel(username=user.username).get()):
+    if (usuario := await get_user(user.username)):
         return JSONResponse(content={"message": "User alredy exists."}, status_code=409)
     new_user: UserModel = await UserModel(username=user.username, password=get_password_hash(user.password),
                                           email=user.email).create()
@@ -392,14 +403,14 @@ async def register(user: UserCreate):
         data={"sub": new_user.username, "email": new_user.email}, expires_delta=access_token_expires
     )
     token = Token(access_token=access_token, token_type="bearer")
-    print(f'Token: {token}')
+    #print(f'Token: {token}')
     response = JSONResponse(content=token.dict(), status_code=201)
     response.set_cookie(
         key="access_token",
         value=token.access_token,
-        httponly=True,
-        secure=True,  # Ensure you're using HTTPS
-        samesite="strict",  # Set the SameSite attribute to None
+        httponly=False, #Impedir al codigo de js acceder a la cookie ej :Document.cookie
+        secure=False,  # Ensure you're using HTTPS
+        samesite="lax",  # Set the SameSite attribute to None
     )
     return response
 
@@ -413,8 +424,8 @@ async def read_users_me(
     # return current_user.toJSON()
 
 
-@router.patch("/me", response_model=User)
-async def update_user(current_user: Annotated[UserModel, Depends(get_current_active_user)], user: UserCreate,
+@router.put("/me", response_model=User)
+async def update_user(current_user: Annotated[UserModel, Depends(get_current_active_user)], user: UserInDB,
                       db: AsyncSession = Depends(local_db.get_db_session)):
     try:
         # config = user.config_user

@@ -122,6 +122,6 @@ async def get_agents_call(agent_id: int, db: AsyncSession = Depends(get_user_db_
     result = await db.execute(select(Call).where(Call.agent_id == agent_id))
     llamadas = result.scalars().all()
     # print({'agents': [agent.to_dict() for agent in agents]})
-    if not llamadas:
+    if not llamadas and llamadas != []:
         raise HTTPException(status_code=404, detail="Llamadas no encontrado")
     return JSONResponse(content={'calls': [llamada.to_dict() for llamada in llamadas]}, status_code=200)

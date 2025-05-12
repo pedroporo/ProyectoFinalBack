@@ -65,6 +65,7 @@ class Agent(Base):
     creatividadVoz = Column(sqlalchemy.Float, default=0.6)
     silenceCloseCall = Column(sqlalchemy.Integer, default=30)
     callMaxDuration = Column(sqlalchemy.Integer)
+    phone_number = Column(sqlalchemy.String(20), nullable=True)
 
     # calls= relationship("Call", back_populates="agent", cascade="all, delete-orphan")
     async def update(self):
@@ -118,7 +119,8 @@ class Agent(Base):
             'velozidadVoz': self.velozidadVoz,
             'creatividadVoz': self.creatividadVoz,
             'silenceCloseCall': self.silenceCloseCall,
-            'callMaxDuration': self.callMaxDuration
+            'callMaxDuration': self.callMaxDuration,
+            'phone_number': self.phone_number,
         }
 
     def toJSON(self):
@@ -212,7 +214,7 @@ class Agent(Base):
             # Realiza la llamada
             # print('Empezando llamada')
             call = self.client.calls.create(
-                from_=self.user.config_user['credentials']['TWILIO_NUMBER'],
+                from_=self.phone_number|  self.user.config_user['credentials']['TWILIO_NUMBER'],
                 to=phone_number_to_call.phone_number,
                 twiml=outbound_twiml,
                 record=True,

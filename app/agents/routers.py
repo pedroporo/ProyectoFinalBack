@@ -6,7 +6,7 @@ from sqlalchemy.future import select
 from app.users.models import GoogleCredential
 from app.users.models import User
 from app.users.routers import get_current_active_user
-from app.users.routers import get_google_creds, get_user_db_session, get_user_db
+from app.users.routers import get_google_creds, get_user_db_session, get_user_db,get_user_db_session_class
 from .models import Agent
 # from app.agents.models import Agent
 # from app.agents.schemas import AgentCreate,AgentResponse
@@ -71,12 +71,12 @@ async def get_agent(agent_id: int, db: Database = Depends(get_user_db),
 
 
 @router.get("/", response_model=None)
-async def get_agent(db: AsyncSession = Depends(get_user_db_session)):
+async def get_agent(db: AsyncSession = Depends(get_user_db_session_class)):
     # db = await current_user.get_user_database()
     result = await db.execute(select(Agent))
     agents = result.scalars().all()
     # print({'agents': [agent.to_dict() for agent in agents]})
-    if not agents:
+    if not agents and agents !=[]:
         raise HTTPException(status_code=404, detail="Agente no encontrado")
     return JSONResponse(content={'agents': [agent.to_dict() for agent in agents]}, status_code=200)
 
@@ -86,8 +86,8 @@ async def agent_make_calls(agent_id: int, db: Database = Depends(get_user_db),
                            creds: GoogleCredential = Depends(get_google_creds),
                            current_user: User = Depends(get_current_active_user)):
     agent = await Agent(id=agent_id).get()
-    agent.googleCreds = creds.access_token
-    agent.user = current_user
     if not agent:
         raise HTTPException(status_code=404, detail="Agente no encontrado")
+    agent.googleCreds = creds.access_token
+    agent.user = current_user
     return JSONResponse(content=await agent.make_call(db), status_code=200)

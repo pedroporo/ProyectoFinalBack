@@ -11,7 +11,7 @@ from websocket_server.functionHandeler import functions
 load_dotenv()
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 client = OpenAI(api_key=OPENAI_API_KEY)
-USER: User = asyncio.run(User(google_id='').getByGId())
+USER: User = asyncio.run(User(google_id='fd').getByGId())
 response = client.responses.create(
     model="gpt-4.1",
     input=[{"role": "user",

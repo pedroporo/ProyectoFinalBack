@@ -428,10 +428,18 @@ async def read_users_me(
 async def update_user(current_user: Annotated[UserModel, Depends(get_current_active_user)], user: UserInDB,
                       db: AsyncSession = Depends(local_db.get_db_session)):
     try:
+        if current_user.password != user.password and  not verify_password(user.password,current_user.password):
+            raise HTTPException(
+        status_code=status.HTTP_417_EXPECTATION_FAILED,
+        detail="La contraseña no es correcta",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
         # config = user.config_user
         # user.config_user = ''
         current_user.username = user.username
         current_user.email = user.email
+        if current_user.password != user.password:
+            current_user.password=get_password_hash(user.password)
         current_user.avatar = current_user.avatar if user.avatar == None else user.avatar
         current_user.config_user = current_user.config_user if user.config_user == None else user.config_user
         # new_user = UserModel(id=current_user.id, username=user.username, email=user.email,
@@ -439,7 +447,22 @@ async def update_user(current_user: Annotated[UserModel, Depends(get_current_act
         # new_user = UserModel(id=current_user.id, **user.dict())
         # new_user.config_user = json.dumps(config)
         await current_user.update()
-        return JSONResponse(content=current_user.to_dict(), status_code=200)
+
+        access_token_expires = timedelta(days=30)
+        access_token = create_access_token(
+            data={"sub": current_user.username, "email": current_user.email}, expires_delta=access_token_expires
+        )
+        token = Token(access_token=access_token, token_type="bearer")
+        # print(f'Token: {token}')
+        response = JSONResponse(content=current_user.to_dict(), status_code=200)
+        response.set_cookie(
+            key="access_token",
+            value=token.access_token,
+            httponly=False,  # Impedir al codigo de js acceder a la cookie ej :Document.cookie
+            secure=False,  # Ensure you're using HTTPS
+            samesite="lax",  # Set the SameSite attribute to None
+        )
+        return response
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=400, detail=str(e))

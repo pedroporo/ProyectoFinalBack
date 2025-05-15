@@ -151,7 +151,7 @@ class Agent(Base):
             print(f"Error checking phone number: {e}")
             return False
 
-    async def make_call(self, db: Database):
+    async def make_call(self, db: Database,token:str =None):
         # async def make_call(self,phone_number_to_call: str):
         """Make an outbound call."""
         # if not phone_number_to_call:
@@ -209,12 +209,12 @@ class Agent(Base):
                     f'https://{DOMAIN}/setSession',
                     json=payload,
                     headers=headers,
-
+                    cookies={"access_token":token},
                 )
             # Realiza la llamada
             # print('Empezando llamada')
             call = self.client.calls.create(
-                from_=self.phone_number|  self.user.config_user['credentials']['TWILIO_NUMBER'],
+                from_=self.phone_number,
                 to=phone_number_to_call.phone_number,
                 twiml=outbound_twiml,
                 record=True,

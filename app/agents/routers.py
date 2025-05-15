@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException,Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -82,12 +82,15 @@ async def get_agent(db: AsyncSession = Depends(get_user_db_session_class)):
 
 
 @router.get("/{agent_id}/makeCalls", response_model=None)
-async def agent_make_calls(agent_id: int, db: Database = Depends(get_user_db),
-                           creds: GoogleCredential = Depends(get_google_creds),
+async def agent_make_calls(agent_id: int,request: Request, db: Database = Depends(get_user_db),
+                           #creds: GoogleCredential = Depends(get_google_creds),
                            current_user: User = Depends(get_current_active_user)):
+    token=request.cookies.get("access_token")
+    print(token)
     agent = await Agent(id=agent_id).get()
     if not agent:
         raise HTTPException(status_code=404, detail="Agente no encontrado")
-    agent.googleCreds = creds.access_token
+    #agent.googleCreds = creds.access_token |None
+    agent.googleCreds = None
     agent.user = current_user
-    return JSONResponse(content=await agent.make_call(db), status_code=200)
+    return JSONResponse(content=await agent.make_call(db,token), status_code=200)

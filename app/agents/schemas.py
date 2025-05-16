@@ -22,6 +22,7 @@ class AgentBase(BaseModel):
     creatividadVoz: float = 0.6
     silenceCloseCall: int = 30
     callMaxDuration: Optional[int] = None
+    phone_number: str
 
 class AgentCreate(AgentBase):
     pass

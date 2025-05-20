@@ -263,39 +263,39 @@ class Agent(Base):
                 call_db.call_duration = llamada.duration
                 call_db.call_json_twilio = f'{llamada.__dict__}'
                 await call_db.update()
-                if llamada.status == 'completed':
+                #if llamada.status == 'completed':
                     # await asyncio.sleep(5)
-                    recordings = self.client.recordings.list(call_sid=llamada.sid, page_size=1)
+                    #recordings = self.client.recordings.list(call_sid=llamada.sid, page_size=1)
                     # transcriptions = self.client.intelligence.v2.transcripts.list(source_sid=recordings[0].sid,
                     #                                                               page_size=1)
-                    transcript = None
-                    try:
-                        transcript = self.client.intelligence.v2.transcripts.create(
-                            channel={
-                                "media_properties": {"source_sid": recordings[0].sid},
-                                "participants": [
-                                    {
-                                        "user_id": "id1",
-                                        "channel_participant": 1,
-                                        # "media_participant_id": llamada.to,
-                                        "full_name": call_db.contact_name,
-                                        "role": "Cliente",
-                                    },
-                                    {
-                                        "user_id": "id2",
-                                        "channel_participant": 2,
-                                        # "media_participant_id": PHONE_NUMBER_FROM,
-                                        "full_name": "IA",
-                                        "role": "IA",
-                                    },
-                                ],
-                            },
-                            service_sid=TWILIO_SERVICE_ID
-                        )
-                    except Exception as e:
-                        print(f"Error al crear la transcripción: {e}")
+                    # transcript = None
+                    # try:
+                    #     transcript = self.client.intelligence.v2.transcripts.create(
+                    #         channel={
+                    #             "media_properties": {"source_sid": recordings[0].sid},
+                    #             "participants": [
+                    #                 {
+                    #                     "user_id": "id1",
+                    #                     "channel_participant": 1,
+                    #                     # "media_participant_id": llamada.to,
+                    #                     "full_name": call_db.contact_name,
+                    #                     "role": "Cliente",
+                    #                 },
+                    #                 {
+                    #                     "user_id": "id2",
+                    #                     "channel_participant": 2,
+                    #                     # "media_participant_id": PHONE_NUMBER_FROM,
+                    #                     "full_name": "IA",
+                    #                     "role": "IA",
+                    #                 },
+                    #             ],
+                    #         },
+                    #         service_sid=TWILIO_SERVICE_ID
+                    #     )
+                    #except Exception as e:
+                     #   print(f"Error al crear la transcripción: {e}")
 
-                    await self.esperar_a_transcript(transcript_sid=transcript.sid, call_sid=llamada.sid)
+                    #await self.esperar_a_transcript(transcript_sid=transcript.sid, call_sid=llamada.sid)
 
                     # print(transcriptions[0].sentences.list(redacted=False))
                     # recording_url = self.get_recording_url(llamada.sid)

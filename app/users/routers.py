@@ -315,12 +315,12 @@ async def auth(request: Request, db: AsyncSession = Depends(local_db.get_db_sess
     redirect_url = request.session.pop("login_redirect", "")
     response = RedirectResponse(redirect_url)
     expires_at = datetime.now(ZoneInfo("Europe/Madrid")) + timedelta(seconds=token["expires_in"])
-    print(f'Access Token: {access_token}')
-    print(f'Access Token Google: ' + token['access_token'])
-    print(f'Token Google: {token}')
-    print(f'Time when expire: {expires_at}')
-    print(f'Time Now: {datetime.now(ZoneInfo("Europe/Madrid"))}')
-    print(f'Time expire in: {timedelta(seconds=token["expires_in"])}')
+    # print(f'Access Token: {access_token}')
+    # print(f'Access Token Google: ' + token['access_token'])
+    # print(f'Token Google: {token}')
+    # print(f'Time when expire: {expires_at}')
+    # print(f'Time Now: {datetime.now(ZoneInfo("Europe/Madrid"))}')
+    # print(f'Time expire in: {timedelta(seconds=token["expires_in"])}')
     response.set_cookie(
         key="access_token",
         value=access_token,

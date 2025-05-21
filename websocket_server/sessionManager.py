@@ -47,7 +47,17 @@ class SessionManager:
         self.USER = User(**json.loads(USER))
         self.client = Client(self.USER.config_user['credentials']['TWILIO_ACCOUNT_SID'],
                              self.USER.config_user['credentials']['TWILIO_AUTH_TOKEN'])
+        self.callDB=None
         # print(f"Voice: {self.VOICE} Instructions: {self.SYSTEM_MESSAGE} Creativity: {self.CREATIVITY}")
+    def setSession(self, VOICE=None, SYSTEM_MESSAGE=None, GOOGLE_CREDS=None, USER=None, CREATIVITY=0.6,CALL=None):
+        self.VOICE = VOICE
+        self.SYSTEM_MESSAGE = SYSTEM_MESSAGE
+        self.GOOGLE_CREDS = GOOGLE_CREDS
+        self.USER = User(**json.loads(USER))
+        self.client = Client(self.USER.config_user['credentials']['TWILIO_ACCOUNT_SID'],
+                             self.USER.config_user['credentials']['TWILIO_AUTH_TOKEN'])
+        self.CREATIVITY = CREATIVITY
+        self.callDB=CALL
 
     async def initialize_session(self, openai_ws):
         """Inicializa la sesión con OpenAI."""
@@ -92,7 +102,7 @@ class SessionManager:
             # result = await fn_def['handler'](args, self.GOOGLE_CREDS)
 
             # print(f'Google Creds: {self.GOOGLE_CREDS}')
-            result = await fn_def.handler(args, self.USER)
+            result = await fn_def.handler(args, self.USER,self.callDB)
             return result
         except Exception as err:
             print(f"Error running function {item['name']}:", err)

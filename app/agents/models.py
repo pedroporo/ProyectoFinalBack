@@ -203,6 +203,7 @@ class Agent(Base):
                 "creatividadVoz": self.creatividadVoz,
                 "googleCreds": self.googleCreds,
                 "user": self.user.toJSON(),
+                "call":phone_number_to_call.toJSON(),
             }
             async with httpx.AsyncClient() as client:
                 response = await client.post(

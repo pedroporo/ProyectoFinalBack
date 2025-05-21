@@ -126,7 +126,7 @@ functions = FunctionHandlerArray()
 # })
 
 
-async def check_google_calendar(args, user):
+async def check_google_calendar(args, user,callDB):
     # user = await User(google_id=user_gid).getByGId()
     creds = await get_google_creds(user=user)
     # print(f'Google creds in fun check: {creds.to_dict()}')
@@ -142,7 +142,7 @@ async def check_google_calendar(args, user):
     return events_result.get('items', [])
 
 
-async def create_google_event(args, user):
+async def create_google_event(args, user,callDB):
     # user = await User(google_id=user_gid).getByGId()
     creds = await get_google_creds(user=user)
     # print(f'Google creds in fun create: {creds.to_dict()}')
@@ -165,7 +165,7 @@ async def create_google_event(args, user):
         return {"error": f"Formato de fecha inválido, usar ISO 8601: {e}"}
 
 
-async def send_email(args, user):
+async def send_email(args, user,callDB):
     # from app.users.models import User
     # user: User = await User(google_id=USER_GID).getByGId()
     # print(f'Usera Gid: {user_gid}')
@@ -174,6 +174,8 @@ async def send_email(args, user):
     # print(f'Args email: {args}')
     # print(f'User email: {user.to_dict()}')
     # print(f'Google creds in fun: {creds}')
+    contactInfo=(f'\nNombre del contacto: {callDB["contact_name"]}'
+                 f'Numero del telefono del contacto de la llamada: {callDB["phone_number"]}')
     import smtplib
     from email.mime.text import MIMEText
     # smtpObj = smtplib.SMTP(host, port)
@@ -183,7 +185,7 @@ async def send_email(args, user):
     mail_port = user.config_user['mail_settings']['MAIL_PORT']
     mail_host = user.config_user['mail_settings']['MAIL_HOST']
     try:
-        msg = MIMEText(args['body'])
+        msg = MIMEText(args['body']+contactInfo)
         msg['Subject'] = args['subject']
         msg['From'] = mail_username
         msg['To'] = ', '.join(recivers)

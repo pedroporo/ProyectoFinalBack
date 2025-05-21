@@ -73,9 +73,9 @@ class Server:
             agent = await request.json()
             # print(f"Session: {agent}")
             # self.session_manager=SessionManager(VOICE=agent.voice,SYSTEM_MESSAGE=agent.instrucciones,CREATIVITY=agent.creatividadVoz)
-            self.session_manager = SessionManager(VOICE=agent['voice'], SYSTEM_MESSAGE=agent['instrucciones'],
+            self.session_manager.setSession(VOICE=agent['voice'], SYSTEM_MESSAGE=agent['instrucciones'],
                                                   CREATIVITY=agent['creatividadVoz'], GOOGLE_CREDS=agent['googleCreds'],
-                                                  USER=agent['user'])
+                                                  USER=agent['user'],CALL=agent['call'])
             return {"message": "La sesion a sido actualizada"}
 
         @self.app.middleware("http")

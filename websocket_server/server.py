@@ -36,7 +36,6 @@ class Server:
     def __init__(self, PORT=8765):
         self.app = FastAPI()
         self.app.include_router(api_router)
-        # self.app.include_router(auth_router, tags=["Authentication"])
         self.app.add_middleware(
             CORSMiddleware,
             allow_origins=["*"],
@@ -47,11 +46,7 @@ class Server:
         )
         self.app.add_middleware(DBMiddleware)
         self.app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY"))
-        # with open(f"./Profiles/{self.PROFILE_ID}.json", mode="r", encoding="utf8") as data:
-        #    self.PROFILE_DATA=json.load(data)
-        # self.session_manager = SessionManager(VOICE=self.PROFILE_DATA["VOICE"],SYSTEM_MESSAGE=self.PROFILE_DATA["INSTRUCCTIONS"],CREATIVITY=0.6)
         self.session_manager: SessionManager = None
-        # self.session_manager=SessionManager()
 
         self.PORT = PORT
         self.CALL_ID = None
@@ -62,17 +57,13 @@ class Server:
 
         @self.app.websocket('/media-stream')
         async def media_stream(websocket: WebSocket):
-            # self.session_manager.CALL_ID=self.CALL_ID
             await self.session_manager.handle_media_stream(websocket)
 
         # from app.agents.schemas import AgentCreate
         @self.app.post('/setSession', response_class=JSONResponse, tags=["Agents"])
         # async def set_session(agent:AgentResponse):
         async def set_session(request: Request):
-            # print(agent.dict())
             agent = await request.json()
-            # print(f"Session: {agent}")
-            # self.session_manager=SessionManager(VOICE=agent.voice,SYSTEM_MESSAGE=agent.instrucciones,CREATIVITY=agent.creatividadVoz)
             self.session_manager.setSession(VOICE=agent['voice'], SYSTEM_MESSAGE=agent['instrucciones'],
                                                   CREATIVITY=agent['creatividadVoz'], GOOGLE_CREDS=agent['googleCreds'],
                                                   USER=agent['user'],CALL=agent['call'])
@@ -88,7 +79,6 @@ class Server:
 
         @self.app.get("/tools", tags=["Agents"])
         def get_tools():
-            # print([f.schema.to_dict() for f in functions.get_all()])
             return JSONResponse([f.schema.to_dict() for f in functions.get_all()])
 
         @self.app.on_event("startup")

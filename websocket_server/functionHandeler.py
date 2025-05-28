@@ -94,9 +94,10 @@ async def send_email(args, user,callDB):
     # print(f'User email: {user.to_dict()}')
     # print(f'Google creds in fun: {creds}')
     print(callDB)
-    print(callDB.contact_name)
-    contactInfo=(f'\nNombre del contacto: {callDB.contact_name}'
-                 f'Numero del telefono del contacto de la llamada: {callDB.phone_number}')
+    print(callDB[5])
+    print(callDB[7])
+    contactInfo=(f'\nNombre del contacto: {callDB[5]}'
+                 f'Numero del telefono del contacto de la llamada: {callDB[7]}')
     import smtplib
     from email.mime.text import MIMEText
     # smtpObj = smtplib.SMTP(host, port)
@@ -128,7 +129,7 @@ async def get_weather(args):
     return json.dumps({"temp": current_temp})
 
 
-async def stop_call(args, user):
+async def stop_call(args, user,callDB):
     client = Client(user.config_user['credentials']['TWILIO_ACCOUNT_SID'],
                     user.config_user['credentials']['TWILIO_AUTH_TOKEN'])
     client.calls(args['call_id']).update(

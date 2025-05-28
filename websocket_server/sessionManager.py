@@ -44,7 +44,7 @@ class SessionManager:
         self.CREATIVITY = CREATIVITY
         self.CALL_ID = None
         self.GOOGLE_CREDS = GOOGLE_CREDS
-        self.USER = User(**json.loads(USER or {}))
+        self.USER = User(**json.loads(USER)) | None
         self.client = Client(self.USER.config_user['credentials']['TWILIO_ACCOUNT_SID'],
                              self.USER.config_user['credentials']['TWILIO_AUTH_TOKEN'])
         self.callDB=None

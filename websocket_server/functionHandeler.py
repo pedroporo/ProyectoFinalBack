@@ -94,9 +94,9 @@ async def send_email(args, user,callDB):
     # print(f'User email: {user.to_dict()}')
     # print(f'Google creds in fun: {creds}')
     call=json.loads(callDB)
-    print(call)
-    print(call["contact_name"])
-    print(call["phone_number"])
+    #print(call)
+    #print(call["contact_name"])
+    #print(call["phone_number"])
     contactInfo=(f'\nNombre del contacto: {call["contact_name"]}'
                  f'\nNumero del telefono del contacto de la llamada: {call["phone_number"]}')
     import smtplib

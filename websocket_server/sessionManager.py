@@ -33,7 +33,7 @@ SHOW_TIMING_MATH = False
 
 
 class SessionManager:
-    def __init__(self, VOICE=None, SYSTEM_MESSAGE=None, GOOGLE_CREDS=None, USER={}, CREATIVITY=0.6):
+    def __init__(self, VOICE=None, SYSTEM_MESSAGE=None, GOOGLE_CREDS=None, USER=None, CREATIVITY=0.6):
         self.stream_sid = None
         self.latest_media_timestamp = 0
         self.last_assistant_item = None
@@ -44,7 +44,7 @@ class SessionManager:
         self.CREATIVITY = CREATIVITY
         self.CALL_ID = None
         self.GOOGLE_CREDS = GOOGLE_CREDS
-        self.USER = User(**json.loads(USER))
+        self.USER = User(**json.loads(USER or {}))
         self.client = Client(self.USER.config_user['credentials']['TWILIO_ACCOUNT_SID'],
                              self.USER.config_user['credentials']['TWILIO_AUTH_TOKEN'])
         self.callDB=None

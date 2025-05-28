@@ -46,7 +46,7 @@ class Server:
         )
         self.app.add_middleware(DBMiddleware)
         self.app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY"))
-        self.session_manager: SessionManager = None
+        self.session_manager: SessionManager = SessionManager()
 
         self.PORT = PORT
         self.CALL_ID = None
@@ -61,7 +61,6 @@ class Server:
 
         # from app.agents.schemas import AgentCreate
         @self.app.post('/setSession', response_class=JSONResponse, tags=["Agents"])
-        # async def set_session(agent:AgentResponse):
         async def set_session(request: Request):
             agent = await request.json()
             self.session_manager.setSession(VOICE=agent['voice'], SYSTEM_MESSAGE=agent['instrucciones'],
@@ -97,4 +96,4 @@ class Server:
 if __name__ == "__main__":
     server = Server()
     server.run()
-    # print("Hola: " + server.CALL_ID)
+

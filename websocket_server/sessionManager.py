@@ -33,7 +33,7 @@ SHOW_TIMING_MATH = False
 
 
 class SessionManager:
-    def __init__(self, VOICE=None, SYSTEM_MESSAGE=None, GOOGLE_CREDS=None, USER=None, CREATIVITY=0.6):
+    def __init__(self, VOICE=None, SYSTEM_MESSAGE=None, GOOGLE_CREDS=None, USER={}, CREATIVITY=0.6):
         self.stream_sid = None
         self.latest_media_timestamp = 0
         self.last_assistant_item = None

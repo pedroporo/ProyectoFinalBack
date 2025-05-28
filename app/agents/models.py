@@ -172,12 +172,7 @@ class Agent(Base):
         headers = {
             'Content-Type': 'application/json',
         }
-
-        # response = requests.request("POST", f'https://{DOMAIN}/setSession/',headers=headers, data=payload,json=payload,allow_redirects=True)
-
-        # response = requests.request("POST", f'https://{DOMAIN}/setSession/', headers=headers, json=self.to_dict(),allow_redirects=True,verify=False)
         # print(response.text)
-        # Server.session_manager=SessionManager(VOICE=self.voice.value,SYSTEM_MESSAGE=self.instrucciones,CREATIVITY=self.creatividadVoz)
         # is_allowed = await self.check_number_allowed(phone_number_to_call)
         # if not is_allowed:
         #    raise ValueError(
@@ -194,8 +189,6 @@ class Agent(Base):
             f'<Response><Connect><Stream url="wss://{DOMAIN}/media-stream" /> </Connect><Pause length="{self.silenceCloseCall}"/><Hangup/></Response>'
         )
         for phone_number_to_call in numeros:
-            # test=str(self.instrucciones).format(customer_name=phone_number_to_call.contact_name)
-            # print(self.instrucciones.format(customer_name=phone_number_to_call.contact_name))
 
             payload = {
                 "voice": self.voice.value,
@@ -213,7 +206,6 @@ class Agent(Base):
                     cookies={"access_token":token},
                 )
             # Realiza la llamada
-            # print('Empezando llamada')
             call = self.client.calls.create(
                 from_=self.phone_number,
                 to=phone_number_to_call.phone_number,
@@ -250,13 +242,6 @@ class Agent(Base):
             # print(f"Estado llamada {call_sid}: {llamada.status}")
 
             if llamada.status in ['completed', 'failed', 'busy', 'no-answer']:
-                # llamada.transcriptions.create(inbound_track_label="Cliente",outbound_track_label="AI")
-                # llamada.recordings.list()[0]..transcriptions.create()
-                # print(llamada.transcriptions.__dict__)
-                # await asyncio.sleep(30)
-                # print(llamada._proxy.__dict__)
-                # print(f"Llamada a dict: {llamada.__dict__}")
-                # print(llamada.recordings.list()[0])
 
                 call_db.call_id = llamada.sid
                 call_db.status = llamada.status
@@ -265,10 +250,7 @@ class Agent(Base):
                 call_db.call_json_twilio = f'{llamada.__dict__}'
                 await call_db.update()
                 #if llamada.status == 'completed':
-                    # await asyncio.sleep(5)
                     #recordings = self.client.recordings.list(call_sid=llamada.sid, page_size=1)
-                    # transcriptions = self.client.intelligence.v2.transcripts.list(source_sid=recordings[0].sid,
-                    #                                                               page_size=1)
                     # transcript = None
                     # try:
                     #     transcript = self.client.intelligence.v2.transcripts.create(
@@ -278,14 +260,12 @@ class Agent(Base):
                     #                 {
                     #                     "user_id": "id1",
                     #                     "channel_participant": 1,
-                    #                     # "media_participant_id": llamada.to,
                     #                     "full_name": call_db.contact_name,
                     #                     "role": "Cliente",
                     #                 },
                     #                 {
                     #                     "user_id": "id2",
                     #                     "channel_participant": 2,
-                    #                     # "media_participant_id": PHONE_NUMBER_FROM,
                     #                     "full_name": "IA",
                     #                     "role": "IA",
                     #                 },
@@ -297,12 +277,6 @@ class Agent(Base):
                      #   print(f"Error al crear la transcripción: {e}")
 
                     #await self.esperar_a_transcript(transcript_sid=transcript.sid, call_sid=llamada.sid)
-
-                    # print(transcriptions[0].sentences.list(redacted=False))
-                    # recording_url = self.get_recording_url(llamada.sid)
-                    # transcription = await self.transcribe_audio(recording_url)
-                    # await self.save_transcription(text=transcription, call_sid=llamada.sid)
-                    # print(f"Transcripción: {transcription}")
                 break
 
             await asyncio.sleep(5)  # Consulta cada 5 segundos sin bloquear
@@ -321,12 +295,11 @@ class Agent(Base):
         import requests
         from openai import OpenAI
         openai_client = OpenAI(api_key=OPENAI_API_KEY)
-        # Descargar el archivo de audio desde Twilio
-        # self.client.request('GET', uri=audio_url)
+
 
         try:
             response = requests.get(url=audio_url, auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN), timeout=10)
-            response.raise_for_status()  # Lanza error para códigos 4xx/5xx
+            response.raise_for_status()
 
         except requests.HTTPError as err:
             error_msg = f"Error HTTP {err.response.status_code}: {err.response.text}"
@@ -342,12 +315,10 @@ class Agent(Base):
         if response.status_code != 200:
             raise Exception("Error al descargar el archivo de audio")
 
-        # Guardar el archivo localmente
         with open("temp_audio.wav", "wb") as f:
             f.write(response.content)
             f.close()
 
-        # Enviar a la API de OpenAI para transcripción
         with open("temp_audio.wav", "rb") as audio_file:
             transcription = openai_client.audio.transcriptions.create(
                 file=audio_file,

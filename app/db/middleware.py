@@ -22,19 +22,12 @@ class DBMiddleware(BaseHTTPMiddleware):
                             "/api/users/register"]  # Añade aquí las rutas que no requieren auth
             if request.url.path in public_paths:
                 return await call_next(request)
-            # print(f'Recuest: {await request.json()}')
-            # print(f'Recuesta cookie: {request.cookies.get("access_token")}')
             token=request.cookies.get("access_token")
             if not token:
-                #print(request.headers.get('Authorization'))
                 token=request.headers.get('Authorization').split(" ")[1]
-            #print(f'Token: {token}')
             user: User = await validate_user_request(token=token)
-            #print(f'UserM: {user.to_dict()}')
             if user:
-                #print("Getting db")
                 db = await user.get_user_database()
-                #print(f'Db in middleware: {db.to_dict()}')
                 set_current_db(db)
             else:
                 set_current_db(local_db)

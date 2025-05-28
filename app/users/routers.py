@@ -76,11 +76,6 @@ async def get_user(username: str):
 
 async def authenticate_user(username: str, password: str):
     user = await get_user(username)
-    #if re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', username):
-    #    user = await UserModel(email=username).getByGmail()
-    #else:
-    #    user = await UserModel(username=username).get()
-    #print(f'User atuh: {user}')
     if not user:
         return False
     if not verify_password(password, user.password):
@@ -109,18 +104,12 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)],
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        # username = payload.get("sub")
-        #print(f'Get current user email: {payload.get("email")}')
-        #username: UserModel = await UserModel(email=payload.get("email")).getByGmail()
         username: UserModel = await get_user(payload.get("email"))
-        #print(f'User: {username.to_dict()}')
         if username is None:
             raise credentials_exception
         token_data = TokenData(username=username.username)
     except InvalidTokenError:
         raise credentials_exception
-    # user = await get_user(db, username=token_data.username)
-    #user = await UserModel(username=token_data.username).get()
     user=await get_user(token_data.username)
     if user is None:
         raise credentials_exception
@@ -183,8 +172,6 @@ async def get_google_creds(
     margen_de_seguridad = timedelta(minutes=5)
     if creds.expires_at < datetime.now(ZoneInfo("Europe/Madrid")) + margen_de_seguridad:
         if not creds.refresh_token:
-            # response = RedirectResponse(f'{os.getenv("REDIRECT_URL")}/api/users/login/google')
-            # return response
             raise HTTPException(403, "Reautenticación requerida con Google (no refresh token)")
         try:
             # print('Refrescando token')
@@ -243,24 +230,6 @@ async def get_user_db_session_class(db: Database = Depends(get_user_db)):
         return s
 
 
-# async def log_token(access_token, user_email, session_id):
-#     try:
-#         connection = mysql.connector.connect(host=host, database=database, user=user, password=password)
-#
-#         if connection.is_connected():
-#             cursor = connection.cursor()
-#
-#             # SQL query to insert data
-#             sql_query = """INSERT INTO issued_tokens (token, email_id, session_id) VALUES (%s,%s,%s)"""
-#             # Execute the SQL query
-#             cursor.execute(sql_query, (access_token, user_email, session_id))
-#
-#             # Commit changes
-#             connection.commit()
-#
-#     except Exception as e:
-#         print("Error while connecting to MySQL", e)
-
 
 @router.get("/login/google")
 async def login(request: Request, db: AsyncSession = Depends(local_db.get_db_session)):
@@ -304,13 +273,11 @@ async def auth(request: Request, db: AsyncSession = Depends(local_db.get_db_sess
     if user_id is None:
         raise HTTPException(status_code=401, detail="Google authentication failed.")
 
-    # Create JWT token
     access_token_expires = timedelta(seconds=expires_in)
     access_token = create_access_token(data={"sub": user_id, "email": user_email}, expires_delta=access_token_expires)
 
     session_id = str(uuid.uuid4())
     await log_user(user_id, user_email, user_name, user_pic, first_logged_in, last_accessed)
-    # log_token(access_token, user_email, session_id)
 
     redirect_url = request.session.pop("login_redirect", "")
     response = RedirectResponse(redirect_url)
@@ -346,15 +313,6 @@ async def auth(request: Request, db: AsyncSession = Depends(local_db.get_db_sess
 
 
 @router.get("/testDB")
-# async def test(
-#         creds: GoogleCredential = Depends(get_google_creds)):
-#     from googleapiclient.discovery import build
-#     from google.oauth2.credentials import Credentials
-#     creds2 = Credentials(token=creds.access_token)
-#     print(creds.to_dict())
-#     service = build('calendar', 'v3', credentials=creds2)
-#     print(service.calendarList().list().execute())
-#     return service.calendarList().list().execute()
 async def test(
         current_user: Annotated[UserModel, Depends(get_current_active_user)],
         db: AsyncSession = Depends(local_db.get_db_session)
@@ -392,8 +350,6 @@ async def login_for_access_token(
 
 @router.post("/register", tags=["Login"])
 async def register(user: UserCreate):
-    #print(user)await get_user(token_data.username)
-    #if (usuario := await UserModel(username=user.username).get()):
     if (usuario := await get_user(user.username)):
         return JSONResponse(content={"message": "User alredy exists."}, status_code=409)
     new_user: UserModel = await UserModel(username=user.username, password=get_password_hash(user.password),
@@ -434,18 +390,12 @@ async def update_user(current_user: Annotated[UserModel, Depends(get_current_act
         detail="La contraseña no es correcta",
         headers={"WWW-Authenticate": "Bearer"},
     )
-        # config = user.config_user
-        # user.config_user = ''
         current_user.username = user.username
         current_user.email = user.email
         if current_user.password != user.password:
             current_user.password=get_password_hash(user.password)
         current_user.avatar = current_user.avatar if user.avatar == None else user.avatar
         current_user.config_user = current_user.config_user if user.config_user == None else user.config_user
-        # new_user = UserModel(id=current_user.id, username=user.username, email=user.email,
-        #                      avatar=user.avatar, config_user=user.config_user)
-        # new_user = UserModel(id=current_user.id, **user.dict())
-        # new_user.config_user = json.dumps(config)
         await current_user.update()
 
         access_token_expires = timedelta(days=30)
@@ -496,56 +446,3 @@ async def force_refresh_google_token(
         }
     except Exception as e:
         raise HTTPException(500, f"Error al refrescar el token: {e}")
-# Old
-# @router.post("/calls/", response_model=CallResponse)
-# async def create_call(call: CallCreate, db: AsyncSession = Depends(get_db_session)):
-#     try:
-#         new_call = Call(**call.dict())
-#         await new_call.create()
-#         # db.add(new_agent)
-#         # await db.commit()
-#         # await db.refresh(new_agent)
-#         return new_call.to_dict()
-#     except Exception as e:
-#         await db.rollback()
-#         raise HTTPException(status_code=400, detail=str(e))
-#
-#
-# @router.get("/calls/{call_id}", response_model=CallResponse)
-# async def get_call(call_id: int, db: AsyncSession = Depends(get_db_session)):
-#     result = await db.execute(select(Call).where(Call.id == call_id))
-#     call = result.scalar()
-#     if not call:
-#         raise HTTPException(status_code=404, detail="Llamada no encontrado")
-#     return JSONResponse(content=call.to_dict(), status_code=200)
-#
-#
-# @router.put("/calls/{call_id}", response_model=CallResponse)
-# async def update_call(call_id: int, agent: CallCreate, db: AsyncSession = Depends(get_db_session)):
-#     try:
-#         new_call = Call(id=call_id, **agent.dict())
-#         await new_call.update()
-#         return JSONResponse(content={"message": "La llamada a sido actualizada"}, status_code=200)
-#     except Exception as e:
-#         await db.rollback()
-#         raise HTTPException(status_code=400, detail=str(e))
-#
-#
-# @router.delete("/calls/{call_id}", response_model=CallResponse)
-# async def del_call(call_id: int, db: AsyncSession = Depends(get_db_session)):
-#     result = await db.execute(select(Call).where(Call.id == call_id))
-#     call = result.scalar()
-#     call.delete()
-#     if not call:
-#         raise HTTPException(status_code=404, detail="Llamada no encontrado")
-#     return JSONResponse(content={"message": "La llamada a sido eliminada"}, status_code=200)
-#
-#
-# @router.get("/calls/{agent_id}", response_model=None)
-# async def get_agents_call(agent_id: int, db: AsyncSession = Depends(get_db_session)):
-#     result = await db.execute(select(Call).where(Call.agent_id == agent_id))
-#     llamadas = result.scalars().all()
-#     # print({'agents': [agent.to_dict() for agent in agents]})
-#     if not llamadas:
-#         raise HTTPException(status_code=404, detail="Llamadas no encontrado")
-#     return JSONResponse(content={'calls': [llamada.to_dict() for llamada in llamadas]}, status_code=200)

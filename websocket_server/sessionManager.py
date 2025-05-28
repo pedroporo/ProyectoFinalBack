@@ -1,10 +1,9 @@
 import asyncio
 import base64
 import json
-import os
+
 
 import websockets
-from dotenv import load_dotenv
 from fastapi import WebSocket
 from fastapi.websockets import WebSocketDisconnect
 from twilio.rest import Client
@@ -16,13 +15,6 @@ from .functionHandeler import functions
 
 # logging.basicConfig(level=logging.DEBUG)
 
-load_dotenv()
-TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
-TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
-PHONE_NUMBER_FROM = os.getenv('TWILIO_NUMBER')
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-if not (OPENAI_API_KEY):
-    raise ValueError('Missing OpenAI environment variable. Please set them in the .env file.')
 LOG_EVENT_TYPES = [
     'error', 'response.content.done', 'rate_limits.updated', 'response.done',
     'input_audio_buffer.committed', 'input_audio_buffer.speech_stopped',

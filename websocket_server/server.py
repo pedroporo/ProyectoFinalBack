@@ -18,14 +18,10 @@ from websocket_server.sessionManager import SessionManager
 load_dotenv()
 
 # Configuration
-TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
-TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
-PHONE_NUMBER_FROM = os.getenv('TWILIO_NUMBER')
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 raw_domain = os.getenv('DOMAIN', '')
 DOMAIN = re.sub(r'(^\w+:|^)\/\/|\/+$', '', raw_domain)  # Strip protocols and trailing slashes from DOMAIN
 PORT = int(os.getenv('PORT', 8765))
-# app = FastAPI()
+
 
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")

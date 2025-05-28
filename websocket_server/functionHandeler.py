@@ -97,8 +97,8 @@ async def send_email(args, user,callDB):
     print(call)
     print(call[5])
     print(call[7])
-    contactInfo=(f'\nNombre del contacto: {call[5]}'
-                 f'Numero del telefono del contacto de la llamada: {call[7]}')
+    contactInfo=(f'\nNombre del contacto: {call["contact_name"]}'
+                 f'Numero del telefono del contacto de la llamada: {call["phone_number"]}')
     import smtplib
     from email.mime.text import MIMEText
     # smtpObj = smtplib.SMTP(host, port)

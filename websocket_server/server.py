@@ -46,7 +46,7 @@ class Server:
         )
         self.app.add_middleware(DBMiddleware)
         self.app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY"))
-        self.session_manager: SessionManager = SessionManager()
+        self.session_manager: SessionManager = None
 
         self.PORT = PORT
         self.CALL_ID = None

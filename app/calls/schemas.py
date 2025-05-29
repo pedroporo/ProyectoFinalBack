@@ -13,7 +13,18 @@ class CallBase(BaseModel):
     call_duration: Optional[int] = None
     call_json_twilio: Optional[object] = None
     agent_id: int
-
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "contact_name": "Alva De Luque",
+                    "status": "ready",
+                    "agent_id": 1,
+                    "phone_number": "+3412312312"
+                }
+            ]
+        }
+    }
 
 class CallCreate(CallBase):
     pass

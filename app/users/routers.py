@@ -233,6 +233,11 @@ async def get_user_db_session_class(db: Database = Depends(get_user_db)):
 
 @router.get("/login/google")
 async def login(request: Request, db: AsyncSession = Depends(local_db.get_db_session)):
+    """
+                    Redirije al login de google
+                    \f
+                    :agent_id: Id del agente.
+                    """
     request.session.clear()
     referer = request.headers.get("referer")
     frontend_url = os.getenv("FRONTEND_URL")
@@ -243,6 +248,11 @@ async def login(request: Request, db: AsyncSession = Depends(local_db.get_db_ses
 
 @router.get("/auth/google")
 async def auth(request: Request, db: AsyncSession = Depends(local_db.get_db_session)):
+    """
+                    Crea el token de acceso (solo funciona con la redireccion de google)
+                    \f
+                    :agent_id: Id del agente.
+                    """
     try:
         token = await oauth.auth_demo.authorize_access_token(request)
     except Exception as e:
@@ -317,6 +327,11 @@ async def test(
         current_user: Annotated[UserModel, Depends(get_current_active_user)],
         db: AsyncSession = Depends(local_db.get_db_session)
 ):
+    """
+                    Puramente de pruebas, deberia desabilitarlo despues.
+                    \f
+                    :agent_id: Id del agente.
+                    """
     # database = await current_user.get_user_database()
     return JSONResponse(content=current_user.to_dict(), status_code=200)
     # return current_user.toJSON()
@@ -324,6 +339,11 @@ async def test(
 
 @router.get("/logout")
 async def logout(request: Request):
+    """
+                    Cierra la sesion activa del usuario, creo que lo hice mal :/
+                    \f
+                    :agent_id: Id del agente.
+                    """
     request.session.clear()
     response = JSONResponse(content={"message": "Logged out successfully."})
     response.delete_cookie("access_token")
@@ -334,6 +354,11 @@ async def logout(request: Request):
 async def login_for_access_token(
         userLo: UserCreate, db: AsyncSession = Depends(local_db.get_db_session)
 ) -> Token:
+    """
+                    Inicia la sesion con el nombre de usuario o el gmail y su contraseña y retorna un token
+                    \f
+                    :agent_id: Id del agente.
+                    """
     user: UserModel = await authenticate_user(userLo.username, userLo.password)
     if not user:
         raise HTTPException(
@@ -350,6 +375,11 @@ async def login_for_access_token(
 
 @router.post("/register", tags=["Login"])
 async def register(user: UserCreate):
+    """
+                    Registra un usuario y retorna el token
+                    \f
+                    :agent_id: Id del agente.
+                    """
     if (usuario := await get_user(user.username)):
         return JSONResponse(content={"message": "User alredy exists."}, status_code=409)
     new_user: UserModel = await UserModel(username=user.username, password=get_password_hash(user.password),
@@ -376,6 +406,11 @@ async def read_users_me(
         current_user: Annotated[UserModel, Depends(get_current_active_user)],
         db: AsyncSession = Depends(local_db.get_db_session)
 ):
+    """
+                    Esto sirve para retornar el usuario actual
+                    \f
+                    :agent_id: Id del agente.
+                    """
     return JSONResponse(content=current_user.to_dict(), status_code=200)
     # return current_user.toJSON()
 
@@ -383,6 +418,11 @@ async def read_users_me(
 @router.put("/me", response_model=User)
 async def update_user(current_user: Annotated[UserModel, Depends(get_current_active_user)], user: UserInDB,
                       db: AsyncSession = Depends(local_db.get_db_session)):
+    """
+                    Actualiza el usuario actual, se necesita la contraseña actual para poder actualizar, y retorna un token de acceso
+                    \f
+                    :agent_id: Id del agente.
+                    """
     try:
         if current_user.password != user.password and  not verify_password(user.password,current_user.password):
             raise HTTPException(
@@ -422,6 +462,11 @@ async def update_user(current_user: Annotated[UserModel, Depends(get_current_act
 async def force_refresh_google_token(
         current_user: Annotated[UserModel, Depends(get_current_active_user)]
 ):
+    """
+                    Puramente de pruebas, deberia desabilitarlo despues.
+                    \f
+                    :agent_id: Id del agente.
+                    """
     print('Entro en la funcion')
     creds: GoogleCredential = await GoogleCredential().getFromUser(user_id=current_user.google_id)
     if not creds:

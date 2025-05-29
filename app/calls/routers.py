@@ -23,6 +23,16 @@ router = APIRouter(prefix="/calls", tags=["Calls"])
 @router.post("/", response_model=CallResponse, summary="Create call")
 async def create_call(call: CallCreate, db: Database = Depends(get_user_db),
                       current_user: User = Depends(get_current_active_user)):
+    """
+                Crea una llamada en la base de datos del usuario:
+
+                - **contact_name**: El nombre del contacto de la llamada.
+                - **agent_id**: La id del agente al que se le asignara la llamada.
+                - **status**: El estado de la llamada.
+                - **phone_number**: El numero de telefono del contacto.
+                \f
+                :agent_id: Id del agente.
+                """
     try:
         new_call = Call(**call.dict())
         await new_call.create()
@@ -38,6 +48,14 @@ async def upload_calls_csv(
         db: Database = Depends(get_user_db),
         current_user: User = Depends(get_current_active_user)
 ):
+    """
+                    Sube un csv para crear un monton de llamadas en la base de datos del usuario:
+
+                    - **file**: El archivo de las llamadas.
+                    - **agent_id**: La id del agente al que se le asignara la llamada.
+                    \f
+                    :agent_id: Id del agente.
+                    """
     max_length = Call.__table__.columns["contact_name"].type.length
     if file.content_type != "text/csv":
         raise HTTPException(status_code=400, detail="El archivo debe ser un CSV")
@@ -79,6 +97,13 @@ async def upload_calls_csv(
 @router.get("/{call_id}", response_model=CallResponse, summary="Get call")
 async def get_call(call_id: int, db: Database = Depends(get_user_db),
                    current_user: User = Depends(get_current_active_user)):
+    """
+                    Busca una llamada en la base de datos del usuario:
+
+                    - **call_id**: La id de la llamada que estamos buscando.
+                    \f
+                    :agent_id: Id del agente.
+                    """
     call = await Call(id=call_id).get()
     if not call:
         raise HTTPException(status_code=404, detail="Llamada no encontrado")
@@ -88,6 +113,16 @@ async def get_call(call_id: int, db: Database = Depends(get_user_db),
 @router.put("/{call_id}", response_model=CallResponse, summary="Update call")
 async def update_call(call_id: int, call: CallCreate, db: Database = Depends(get_user_db),
                       current_user: User = Depends(get_current_active_user)):
+    """
+                    Actualiza una llamada en la base de datos del usuario:
+
+                    - **contact_name**: El nombre del contacto de la llamada.
+                    - **agent_id**: La id del agente al que se le asignara la llamada.
+                    - **status**: El estado de la llamada.
+                    - **phone_number**: El numero de telefono del contacto.
+                    \f
+                    :agent_id: Id del agente.
+                    """
     try:
         new_call = Call(id=call_id, **call.dict())
         await new_call.update()
@@ -99,6 +134,16 @@ async def update_call(call_id: int, call: CallCreate, db: Database = Depends(get
 @router.delete("/{call_id}", response_model=CallResponse, summary="Delete call")
 async def del_call(call_id: int, db: Database = Depends(get_user_db),
                    current_user: User = Depends(get_current_active_user)):
+    """
+                    Elimina una llamada en la base de datos del usuario:
+
+                    - **contact_name**: El nombre del contacto de la llamada.
+                    - **agent_id**: La id del agente al que se le asignara la llamada.
+                    - **status**: El estado de la llamada.
+                    - **phone_number**: El numero de telefono del contacto.
+                    \f
+                    :agent_id: Id del agente.
+                    """
     call = await Call(id=call_id).get()
     await call.delete()
     if not call:
@@ -109,6 +154,16 @@ async def del_call(call_id: int, db: Database = Depends(get_user_db),
 @router.get("/a/{agent_id}", response_model=None, tags=["Agents"], summary="Get calls from agent")
 async def get_agents_call(agent_id: int, db: AsyncSession = Depends(get_user_db_session_class),
                           current_user: User = Depends(get_current_active_user)):
+    """
+                    Busca una llamada de un agente en la base de datos del usuario:
+
+                    - **contact_name**: El nombre del contacto de la llamada.
+                    - **agent_id**: La id del agente al que se le asignara la llamada.
+                    - **status**: El estado de la llamada.
+                    - **phone_number**: El numero de telefono del contacto.
+                    \f
+                    :agent_id: Id del agente.
+                    """
     result = await db.execute(select(Call).where(Call.agent_id == agent_id))
     llamadas = result.scalars().all()
     if not llamadas and llamadas != []:
@@ -117,6 +172,16 @@ async def get_agents_call(agent_id: int, db: AsyncSession = Depends(get_user_db_
 @router.get("/{call_id}/transcription", summary="Get call transcription")
 async def get_transcription(call_id: str, db: Database = Depends(get_user_db),
                    current_user: User = Depends(get_current_active_user)):
+    """
+                    Busca la transcripccion de una llamada en la base de datos del usuario:
+
+                    - **contact_name**: El nombre del contacto de la llamada.
+                    - **agent_id**: La id del agente al que se le asignara la llamada.
+                    - **status**: El estado de la llamada.
+                    - **phone_number**: El numero de telefono del contacto.
+                    \f
+                    :agent_id: Id del agente.
+                    """
     transcription=await Transcription(call_id=call_id).getBySid()
     if not transcription:
         raise HTTPException(status_code=404, detail="Transcripccion no encontrada")
@@ -124,6 +189,16 @@ async def get_transcription(call_id: str, db: Database = Depends(get_user_db),
 @router.get("/{call_id}/recording", summary="Get call transcription")
 async def get_recording(call_id: str, db: Database = Depends(get_user_db),
                    current_user: User = Depends(get_current_active_user)):
+    """
+                    Busca la grabacion de una llamada:
+
+                    - **contact_name**: El nombre del contacto de la llamada.
+                    - **agent_id**: La id del agente al que se le asignara la llamada.
+                    - **status**: El estado de la llamada.
+                    - **phone_number**: El numero de telefono del contacto.
+                    \f
+                    :agent_id: Id del agente.
+                    """
     try:
         twilio_account_sid = current_user.config_user['credentials']['TWILIO_ACCOUNT_SID']
         twilio_auth_token = current_user.config_user['credentials']['TWILIO_AUTH_TOKEN']

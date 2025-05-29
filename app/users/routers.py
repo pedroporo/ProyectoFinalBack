@@ -54,6 +54,7 @@ oauth.register(
         "scope": "openid profile email https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.events.readonly"},
 )
 
+""" De todas las pruebas que hice no tengo ni idea de cual funcion esta usada"""
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)

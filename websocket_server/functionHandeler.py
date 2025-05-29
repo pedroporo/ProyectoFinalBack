@@ -50,6 +50,7 @@ functions = FunctionHandlerArray()
 
 
 async def check_google_calendar(args, user,callDB):
+    """ Comprobar que el tiempo en google claendar esta disponible, esto es una pesadilla """
     creds = await get_google_creds(user=user)
     google_service = get_calendar_service(creds.access_token)
 
@@ -64,6 +65,7 @@ async def check_google_calendar(args, user,callDB):
 
 
 async def create_google_event(args, user,callDB):
+    """Pesadilla v2: Crea una reunion cuando el bot detecta que el usuario quiere agendar la reunion, el chatgpt no pilla bien el email """
     creds = await get_google_creds(user=user)
     # print(f'Google creds in fun create: {creds.to_dict()}')
     google_service = get_calendar_service(creds.access_token)
@@ -85,6 +87,7 @@ async def create_google_event(args, user,callDB):
 
 
 async def send_email(args, user,callDB):
+    """ El bot envia un email si el usuario quiere que le contactemos, se agrego el contactInfo porque el maldito chatgpt sigue sin pillar bien los correos """
     call=json.loads(callDB)
     contactInfo=(f'\nNombre del contacto: {call["contact_name"]}'
                  f'\nNumero del telefono del contacto de la llamada: {call["phone_number"]}')
@@ -111,6 +114,7 @@ async def send_email(args, user,callDB):
 
 
 async def get_weather(args):
+    """ Esto fue el ejemplo que aparecio en openai para el uso de funciones :) """
     response = requests.get(
         f"https://api.open-meteo.com/v1/forecast?latitude={args['latitude']}&longitude={args['longitude']}&current=temperature_2m,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m"
     )
@@ -120,6 +124,7 @@ async def get_weather(args):
 
 
 async def stop_call(args, user,callDB):
+    """ Funcion para parar la llamada cuando el bot detecta que la conversacion se termino, lo hace cuando quiere """
     client = Client(user.config_user['credentials']['TWILIO_ACCOUNT_SID'],
                     user.config_user['credentials']['TWILIO_AUTH_TOKEN'])
     client.calls(args['call_id']).update(
@@ -127,7 +132,7 @@ async def stop_call(args, user,callDB):
     )
     return json.dumps({"success": f"La llamada a sido finalizada correctamente"})
 
-
+""" todo lo de aqui abajo son las funciones que tiene acceso el chatgpt cuando se inicia la llamada """
 functions.append(FunctionHandler(
     schema=FunctionSchema(
         name="create_google_event",

@@ -132,6 +132,7 @@ class Agent(Base):
     # Initialize Twilio client
 
     async def check_number_allowed(self, to):
+        """ Compruba que el numero este en los que se puedan llamar en twilio (no uso) """
         try:
             # Saltarse el filtro de llamaddas
             # OVERRIDE_NUMBERS = ['+34653072842','+34678000893','+34642447846']
@@ -152,8 +153,7 @@ class Agent(Base):
             return False
 
     async def make_call(self, db: Database,token:str =None):
-        # async def make_call(self,phone_number_to_call: str):
-        """Make an outbound call."""
+        """ Hace las llamadas (no se como explicar mas ._.) """
         # if not phone_number_to_call:
         #    raise ValueError("Please provide a phone number to call.")
         from ..calls.models import Call
@@ -230,10 +230,8 @@ class Agent(Base):
         return {"message": f'Se han llamado a {len(numeros)} numeros telefonicos'}
 
     async def esperar_a_que_finalice(self, call_sid, call_db):
-        """Espera asincrónicamente a que termine una llamada"""
-        # from ..calls.models import Call
+        """Espera asincrónicamente a que termine una llamada doy gracias al usuario de stackoverflow que me mostro que esto es podsible"""
         while True:
-            # Ejecuta la operación síncrona de Twilio en un hilo separado
             llamada = await asyncio.get_event_loop().run_in_executor(
                 None,
                 lambda: self.client.calls(call_sid).fetch()
@@ -249,6 +247,7 @@ class Agent(Base):
                 call_db.call_duration = llamada.duration
                 call_db.call_json_twilio = f'{llamada.__dict__}'
                 await call_db.update()
+                """ No eliminar este es el codigo que hace las transcrippciones """
                 #if llamada.status == 'completed':
                     #recordings = self.client.recordings.list(call_sid=llamada.sid, page_size=1)
                     # transcript = None
@@ -332,6 +331,7 @@ class Agent(Base):
         return transcription
 
     async def esperar_a_transcript(self, transcript_sid, call_sid):
+        """ Formatea la Transcrippcion para que se sepa quien es quien """
         while True:
             transcript = await asyncio.get_event_loop().run_in_executor(
                 None,
@@ -348,7 +348,7 @@ class Agent(Base):
             await asyncio.sleep(5)
 
     async def save_transcription(self, text: str, call_sid):
-
+        """ Guarda la transcripccion en la base de datos del usuario """
         from app.calls.models import Transcription
         transcription = Transcription(
             call_id=call_sid,

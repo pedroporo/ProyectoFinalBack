@@ -75,8 +75,7 @@ class SessionManager:
         await self.send_initial_conversation_item(openai_ws)
 
     async def handle_function_call(self, item: dict):
-        # print("Handling function call:", item)
-        # fn_def = next((f for f in functions if f['schema']['name'] == item['name']), None)
+        """ Aqui se permite que chatgpt use las funciones de funtionHandeler :D """
         fn_def = functions.get_by_name(item['name'])
         if not fn_def:
             raise ValueError(f"No handler found for function: {item['name']}")
@@ -124,6 +123,7 @@ class SessionManager:
             }
         }
         await openai_ws.send(json.dumps(initial_conversation_item))
+        """ Comenta lo de abajo para que la ia no hable primero """
         await openai_ws.send(json.dumps({"type": "response.create"}))
 
     async def handle_media_stream(self, websocket: WebSocket):
@@ -248,7 +248,7 @@ class SessionManager:
             print(f"Error al enviar datos a Twilio: {e}")
 
     async def handle_speech_started_event(self, websocket: WebSocket, openai_ws):
-        """Handle interruption when the caller's speech starts."""
+        """Interrumple a chatgpt para que se calle la boca cuando el usuario hable."""
         # print("Handling speech started event.")
         if self.mark_queue and self.response_start_timestamp_twilio is not None:
             elapsed_time = self.latest_media_timestamp - self.response_start_timestamp_twilio
@@ -278,6 +278,7 @@ class SessionManager:
             self.response_start_timestamp_twilio = None
 
     async def send_mark(self, websocket, openai_ws):
+        """ Marca en que parte de la respuesta esta """
         if self.stream_sid:
             mark_event = {
                 "event": "mark",
